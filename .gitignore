@@ -1,0 +1,22 @@
+# Node
+node_modules/
+npm-debug.log
+
+# Expo
+.expo/
+.expo-shared/
+
+# TypeScript
+*.tsbuildinfo
+
+# Environment
+.env
+*.env
+
+# Build
+dist/
+build/
+
+# iOS/Android native
+android/
+ios/

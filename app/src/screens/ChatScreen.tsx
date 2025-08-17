@@ -60,18 +60,18 @@ export default function ChatScreen() {
     const s = socketRef.current;
     if (!s) return;
 
-    const onNew = async (payload: { message: Msg }) => {
+    const onNew = (payload: { message: Msg }) => {
       const msg = payload.message;
       if (msg.conversationId !== conversationId) return;
 
-      setMessages(prev => [...prev, msg]);
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
+      setMessages(prev => {
+        if (prev.some(m => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
 
-      if (msg.senderId !== me?.id) {
-        void api.post('/receipts/delivered', { messageId: msg.id });
-        void api.post('/receipts/seen', { conversationId, messageId: msg.id });
-      }
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
     };
+
 
     const onTyping = (payload: { userId: string; displayName: string; isTyping: boolean }) => {
       if (!payload || payload.userId === me?.id) return;

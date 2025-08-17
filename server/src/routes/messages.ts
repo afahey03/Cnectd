@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { PrismaClient } from "@prisma/client";
 import { requireAuth, AuthedRequest } from "../middleware/auth";
+import { io } from "../realtime/socket";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -40,7 +41,6 @@ router.post("/:conversationId", requireAuth, async (req: AuthedRequest, res) => 
 
   if (!content || !content.trim()) return res.status(400).json({ error: "content required" });
 
-  // ensure membership
   const conv = await prisma.conversation.findFirst({
     where: { id: conversationId, users: { some: { id: uid } } }
   });
@@ -50,7 +50,8 @@ router.post("/:conversationId", requireAuth, async (req: AuthedRequest, res) => 
     data: { conversationId, senderId: uid, content: content.trim() }
   });
 
-  // (Realtime emit will be added in the next step)
+  io?.to(`conv:${conversationId}`).emit("msg:new", { message: msg });
+
   res.json({ message: msg });
 });
 

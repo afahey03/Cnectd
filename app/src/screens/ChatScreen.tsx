@@ -38,7 +38,6 @@ export default function ChatScreen() {
   const listRef = useRef<FlatList<Msg>>(null);
   const [typingUsers, setTypingUsers] = useState<Record<string, number>>({});
 
-  // initial load
   useEffect(() => {
     (async () => {
       const res = await api.get(`/messages/${conversationId}`);
@@ -47,7 +46,6 @@ export default function ChatScreen() {
     })();
   }, [conversationId]);
 
-  // realtime + typing
   useEffect(() => {
     const s = socketRef.current;
     if (!s) return;
@@ -79,10 +77,28 @@ export default function ChatScreen() {
 
   const send = async () => {
     const text = input.trim();
-    if (!text) return;
+    if (!text || !me) return;
+
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: Msg = {
+      id: tempId,
+      content: text,
+      createdAt: new Date().toISOString(),
+      senderId: me.id,
+      sender: { id: me.id, username: me.username, displayName: me.displayName } as any,
+      conversationId
+    };
+    setMessages(prev => [...prev, optimistic]);
     setInput('');
-    await api.post(`/messages/${conversationId}`, { content: text });
-    // server emits msg:new which updates the list
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
+
+    try {
+      const res = await api.post(`/messages/${conversationId}`, { content: text });
+      const serverMsg: Msg = res.data.message;
+      setMessages(prev => prev.map(m => (m.id === tempId ? serverMsg : m)));
+    } catch (e) {
+      setMessages(prev => prev.map(m => (m.id === tempId ? { ...m, content: `${m.content} (failed)` } : m)));
+    }
   };
 
   const renderItem = ({ item }: { item: Msg }) => {

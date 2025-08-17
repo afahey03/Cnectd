@@ -28,8 +28,9 @@ export default function HomeScreen() {
             <View style={{ paddingVertical: 12 }}>
               <Text style={{ fontWeight: '600' }}>
                 {item.isGroup
-                  ? `Group${item.name ? ` • ${item.name}` : ''} • ${item.users.length} members`
-                  : item.users.map((u: any) => u.displayName).join(', ')}
+                  ? (item.name ? `Group • ${item.name}` : `Group • ${item.users.length} members`)
+                  : item.users.map((u: any) => u.displayName).join(', ')
+                }
               </Text>
               <Text numberOfLines={1}>{item.messages?.[0]?.content ?? 'No messages yet'}</Text>
             </View>

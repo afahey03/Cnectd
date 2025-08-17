@@ -62,18 +62,31 @@ router.post("/dm", requireAuth, async (req: AuthedRequest, res) => {
 router.post("/group", requireAuth, async (req: AuthedRequest, res) => {
   const uid = req.userId!;
   const { name, memberIds } = req.body as { name?: string; memberIds: string[] };
+
   if (!Array.isArray(memberIds) || memberIds.length === 0) {
     return res.status(400).json({ error: "memberIds required (non-empty array)" });
   }
 
   const uniqueIds = Array.from(new Set([uid, ...memberIds]));
+  const users = await prisma.user.findMany({ where: { id: { in: uniqueIds } }, select: { id: true } });
+  if (users.length !== uniqueIds.length) {
+    return res.status(400).json({ error: "One or more users not found" });
+  }
+
+  if (uniqueIds.length < 3) {
+    return res.status(400).json({ error: "Group must include at least you and 2 others" });
+  }
+
   const conv = await prisma.conversation.create({
     data: {
       isGroup: true,
-      name: name ?? null,
+      name: name?.trim() || null,
       users: { connect: uniqueIds.map(id => ({ id })) }
     },
-    include: { users: { select: { id: true, username: true, displayName: true } } }
+    include: {
+      users: { select: { id: true, username: true, displayName: true } },
+      messages: { take: 1, orderBy: { createdAt: "desc" } }
+    }
   });
 
   res.json({ conversation: conv });

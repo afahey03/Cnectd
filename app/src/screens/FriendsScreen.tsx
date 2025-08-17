@@ -2,13 +2,16 @@ import React, { useState } from 'react';
 import { View, TextInput, Button, FlatList, Text } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { useNavigation } from '@react-navigation/native';
 
 async function startDm(userId: string) {
-  await api.post('/conversations/dm', { otherUserId: userId });
+  const res = await api.post('/conversations/dm', { otherUserId: userId });
+  return res.data.conversation;
 }
 
 export default function FriendsScreen() {
   const [query, setQuery] = useState('');
+  const nav = useNavigation<any>();
 
   const search = useQuery({
     queryKey: ['user-search', query],
@@ -35,13 +38,17 @@ export default function FriendsScreen() {
               await api.post('/friends/request', { toUserId: item.id });
               pending.refetch();
             }} />
-            <Button title="DM" onPress={async () => {
-              try {
-                await startDm(item.id); // works if you’re already friends
-              } catch (e) {
-                // no-op; server will 403 if not friends yet
-              }
-            }} />
+            <Button
+              title="DM"
+              onPress={async () => {
+                try {
+                  const conv = await startDm(item.id);
+                  nav.navigate('Chat', { conversationId: conv.id });
+                } catch (e) {
+                  console.warn('Could not start DM (are you friends yet?)');
+                }
+              }}
+            />
           </View>
         )}
       />

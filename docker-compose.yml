@@ -3,8 +3,8 @@ services:
     image: postgres:16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: cnectd
-      POSTGRES_PASSWORD: cnectd
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: cnectd
     ports:
       - "5432:5432"

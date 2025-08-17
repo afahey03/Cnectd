@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  username     String    @unique
+  displayName  String
+  createdAt    DateTime  @default(now())
+
+  friendsSent     FriendRequest[] @relation("FriendsSent")
+  friendsReceived FriendRequest[] @relation("FriendsReceived")
+  conversations   Conversation[]  @relation("UserConversations")
+  messages        Message[]
+}
+
+model FriendRequest {
+  id        String   @id @default(uuid())
+  fromId    String
+  toId      String
+  status    String   @default("pending") // "pending" | "accepted" | "denied"
+  createdAt DateTime @default(now())
+
+  from User @relation("FriendsSent", fields: [fromId], references: [id])
+  to   User @relation("FriendsReceived", fields: [toId], references: [id])
+}
+
+model Conversation {
+  id        String        @id @default(uuid())
+  isGroup   Boolean       @default(false)
+  name      String?
+  createdAt DateTime      @default(now())
+
+  users    User[]         @relation("UserConversations")
+  messages Message[]
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  senderId       String
+  content        String
+  createdAt      DateTime     @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  sender       User         @relation(fields: [senderId], references: [id])
+}

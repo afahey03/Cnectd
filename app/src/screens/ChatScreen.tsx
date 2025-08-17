@@ -23,6 +23,11 @@ type Msg = {
   conversationId: string;
 };
 
+const TYPING_TIMEOUT = 1200;
+function debounce<T extends (...args: any[]) => void>(fn: T, ms: number) {
+  let t: any; return (...args: Parameters<T>) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
 export default function ChatScreen() {
   const { params }: any = useRoute();
   const { conversationId } = params;
@@ -31,6 +36,7 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const listRef = useRef<FlatList<Msg>>(null);
+  const [typingUsers, setTypingUsers] = useState<Record<string, number>>({});
 
   // initial load
   useEffect(() => {
@@ -41,20 +47,35 @@ export default function ChatScreen() {
     })();
   }, [conversationId]);
 
-  // realtime
+  // realtime + typing
   useEffect(() => {
     const s = socketRef.current;
     if (!s) return;
+
     const onNew = (payload: { message: Msg }) => {
       if (payload.message.conversationId === conversationId) {
         setMessages(prev => [...prev, payload.message]);
-        // scroll on new message
         setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
       }
     };
+
+    const onTyping = (payload: { userId: string; isTyping: boolean }) => {
+      if (!payload || payload.userId === me?.id) return;
+      setTypingUsers(prev => {
+        const next = { ...prev };
+        if (payload.isTyping) next[payload.userId] = Date.now();
+        else delete next[payload.userId];
+        return next;
+      });
+    };
+
     s.on('msg:new', onNew);
-    return () => { s.off('msg:new', onNew); };
-  }, [socketRef.current, conversationId]);
+    s.on('typing', onTyping);
+    return () => {
+      s.off('msg:new', onNew);
+      s.off('typing', onTyping);
+    };
+  }, [socketRef.current, conversationId, me?.id]);
 
   const send = async () => {
     const text = input.trim();
@@ -95,12 +116,24 @@ export default function ChatScreen() {
     );
   };
 
+  const sendTypingStopped = useRef(debounce(() => {
+    socketRef.current?.emit('typing', { conversationId, isTyping: false });
+  }, TYPING_TIMEOUT)).current;
+
+  function onChangeTextWithTyping(text: string) {
+    setInput(text);
+    socketRef.current?.emit('typing', { conversationId, isTyping: true });
+    sendTypingStopped();
+  }
+
+  const typingVisible = Object.keys(typingUsers).length > 0;
+
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0} // adjust if header covers input
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
       >
         <FlatList
           ref={listRef}
@@ -111,10 +144,17 @@ export default function ChatScreen() {
           contentContainerStyle={{ padding: 8, paddingBottom: 12 }}
         />
 
+        {/* ✅ typing banner lives INSIDE the returned JSX */}
+        {typingVisible && (
+          <View style={{ paddingHorizontal: 12, paddingBottom: 4 }}>
+            <Text style={{ fontSize: 12, color: '#666' }}>Someone is typing…</Text>
+          </View>
+        )}
+
         <View style={{ flexDirection: 'row', gap: 8, padding: 8, borderTopWidth: 1, borderColor: '#eee' }}>
           <TextInput
             value={input}
-            onChangeText={setInput}
+            onChangeText={onChangeTextWithTyping}
             placeholder="Message…"
             style={{ borderWidth: 1, borderColor: '#ddd', flex: 1, padding: 12, borderRadius: 20 }}
             onSubmitEditing={send}

@@ -7,6 +7,8 @@ const prisma = new PrismaClient();
 
 app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
 app.use(express.json());
+import authRoutes from "./routes/auth";
+app.use("/auth", authRoutes);
 
 app.get("/", (req, res) => {
   res.send("Cnectd API is running 🚀");

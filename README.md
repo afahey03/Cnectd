@@ -46,8 +46,3 @@ It allows users to register with a unique username, manage friends, and chat via
 
 - **Group Chat (planned)**  
   Multi-user conversations with shared history.
-
----
-
-## 🗂 Project Structure
-

@@ -3,6 +3,10 @@ import { View, TextInput, Button, FlatList, Text } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
 
+async function startDm(userId: string) {
+  await api.post('/conversations/dm', { otherUserId: userId });
+}
+
 export default function FriendsScreen() {
   const [query, setQuery] = useState('');
 
@@ -30,6 +34,13 @@ export default function FriendsScreen() {
             <Button title="Add" onPress={async () => {
               await api.post('/friends/request', { toUserId: item.id });
               pending.refetch();
+            }} />
+            <Button title="DM" onPress={async () => {
+              try {
+                await startDm(item.id); // works if you’re already friends
+              } catch (e) {
+                // no-op; server will 403 if not friends yet
+              }
             }} />
           </View>
         )}

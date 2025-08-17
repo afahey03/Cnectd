@@ -3,9 +3,11 @@ import { View, Button, FlatList, Text, TouchableOpacity } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../store/auth';
 
 export default function HomeScreen() {
   const nav = useNavigation<any>();
+  const logout = useAuth(s => s.logout);
   const { data, refetch, isFetching } = useQuery({
     queryKey: ['conversations'],
     queryFn: async () => (await api.get('/conversations/mine')).data.conversations
@@ -13,6 +15,7 @@ export default function HomeScreen() {
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
+      <Button title="Logout" onPress={logout} />
       <Button title="Friends" onPress={() => nav.navigate('Friends')} />
       <Button title="New Group" onPress={() => nav.navigate('NewGroup')} />
       <FlatList

@@ -41,12 +41,14 @@ model Conversation {
 }
 
 model Message {
-  id             String       @id @default(uuid())
+  id             String   @id @default(uuid())
   conversationId String
   senderId       String
   content        String
-  createdAt      DateTime     @default(now())
+  createdAt      DateTime @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id])
   sender       User         @relation(fields: [senderId], references: [id])
+
+  @@index([conversationId, createdAt])
 }

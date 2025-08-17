@@ -36,8 +36,6 @@ router.get("/:conversationId", requireAuth, async (req: AuthedRequest, res) => {
   res.json({ messages: asc, nextCursor });
 });
 
-
-
 /**
  * Send a message to a conversation you belong to
  * POST /messages/:conversationId  { content: string }

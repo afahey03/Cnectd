@@ -38,10 +38,14 @@ export default function ChatScreen() {
   const listRef = useRef<FlatList<Msg>>(null);
   const [typingUsers, setTypingUsers] = useState<Record<string, number>>({});
 
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   useEffect(() => {
     (async () => {
       const res = await api.get(`/messages/${conversationId}`);
       setMessages(res.data.messages);
+      setNextCursor(res.data.nextCursor ?? null);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 0);
     })();
   }, [conversationId]);
@@ -75,6 +79,19 @@ export default function ChatScreen() {
     };
   }, [socketRef.current, conversationId, me?.id]);
 
+  const loadEarlier = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await api.get(`/messages/${conversationId}`, { params: { cursor: nextCursor } });
+      const older: Msg[] = res.data.messages as Msg[];
+      setMessages(prev => [...older, ...prev]);
+      setNextCursor(res.data.nextCursor ?? null);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   const send = async () => {
     const text = input.trim();
     if (!text || !me) return;
@@ -96,7 +113,7 @@ export default function ChatScreen() {
       const res = await api.post(`/messages/${conversationId}`, { content: text });
       const serverMsg: Msg = res.data.message;
       setMessages(prev => prev.map(m => (m.id === tempId ? serverMsg : m)));
-    } catch (e) {
+    } catch {
       setMessages(prev => prev.map(m => (m.id === tempId ? { ...m, content: `${m.content} (failed)` } : m)));
     }
   };
@@ -156,11 +173,17 @@ export default function ChatScreen() {
           data={messages}
           keyExtractor={(m) => m.id}
           renderItem={renderItem}
+          ListHeaderComponent={
+            nextCursor ? (
+              <View style={{ paddingVertical: 8, alignItems: 'center' }}>
+                <Button title={loadingMore ? 'Loading…' : 'Load earlier'} onPress={loadEarlier} disabled={loadingMore} />
+              </View>
+            ) : null
+          }
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
           contentContainerStyle={{ padding: 8, paddingBottom: 12 }}
         />
 
-        {/* ✅ typing banner lives INSIDE the returned JSX */}
         {typingVisible && (
           <View style={{ paddingHorizontal: 12, paddingBottom: 4 }}>
             <Text style={{ fontSize: 12, color: '#666' }}>Someone is typing…</Text>

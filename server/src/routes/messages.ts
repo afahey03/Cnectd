@@ -13,7 +13,11 @@ const prisma = new PrismaClient();
 router.get("/:conversationId", requireAuth, async (req: AuthedRequest, res) => {
   const uid = req.userId!;
   const { conversationId } = req.params;
-  const limit = Math.min(parseInt(String(req.query.limit ?? "50"), 10) || 50, 200);
+  const limit = Math.min(parseInt(String(req.query.limit ?? "30"), 10) || 30, 200);
+
+  const cursor = req.query.cursor ? new Date(String(req.query.cursor)) : null;
+  const whereBase: any = { conversationId };
+  const where = cursor ? { ...whereBase, createdAt: { lt: cursor } } : whereBase;
 
   const conv = await prisma.conversation.findFirst({
     where: { id: conversationId, users: { some: { id: uid } } }
@@ -21,14 +25,17 @@ router.get("/:conversationId", requireAuth, async (req: AuthedRequest, res) => {
   if (!conv) return res.status(403).json({ error: "Not in conversation" });
 
   const messages = await prisma.message.findMany({
-    where: { conversationId },
-    orderBy: { createdAt: "asc" },
+    where,
+    orderBy: { createdAt: "desc" },
     take: limit,
     include: { sender: { select: { id: true, username: true, displayName: true } } }
   });
 
-  res.json({ messages });
+  const asc = messages.slice().reverse();
+  const nextCursor = asc.length ? asc[0].createdAt : null;
+  res.json({ messages: asc, nextCursor });
 });
+
 
 
 /**

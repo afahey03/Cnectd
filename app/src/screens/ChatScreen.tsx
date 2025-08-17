@@ -36,7 +36,7 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const listRef = useRef<FlatList<Msg>>(null);
-  const [typingUsers, setTypingUsers] = useState<Record<string, number>>({});
+  const [typingUsers, setTypingUsers] = useState<Record<string, string>>({});
 
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -61,12 +61,15 @@ export default function ChatScreen() {
       }
     };
 
-    const onTyping = (payload: { userId: string; isTyping: boolean }) => {
+    const onTyping = (payload: { userId: string; displayName: string; isTyping: boolean }) => {
       if (!payload || payload.userId === me?.id) return;
       setTypingUsers(prev => {
         const next = { ...prev };
-        if (payload.isTyping) next[payload.userId] = Date.now();
-        else delete next[payload.userId];
+        if (payload.isTyping) {
+          next[payload.userId] = payload.displayName;
+        } else {
+          delete next[payload.userId];
+        }
         return next;
       });
     };
@@ -159,6 +162,7 @@ export default function ChatScreen() {
     sendTypingStopped();
   }
 
+  const typingNames = Object.values(typingUsers);
   const typingVisible = Object.keys(typingUsers).length > 0;
 
   return (
@@ -186,7 +190,9 @@ export default function ChatScreen() {
 
         {typingVisible && (
           <View style={{ paddingHorizontal: 12, paddingBottom: 4 }}>
-            <Text style={{ fontSize: 12, color: '#666' }}>Someone is typing…</Text>
+            <Text style={{ fontSize: 12, color: '#666' }}>
+              {typingNames.join(", ")} {typingNames.length > 1 ? "are" : "is"} typing…
+            </Text>
           </View>
         )}
 

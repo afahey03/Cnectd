@@ -7,37 +7,49 @@ const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 
 export let io: Server | null = null;
 
+type AuthedSocket = Parameters<NonNullable<Server["on"]>>[1] extends (arg: infer T) => any ? T & {
+  data: { userId?: string; displayName?: string; username?: string }
+} : never;
+
 export function initSocket(httpServer: any) {
   io = new Server(httpServer, {
     cors: { origin: process.env.CORS_ORIGIN || "*" }
   });
 
-  // Authenticate socket with the same JWT (sent via handshake auth)
   io.use((socket, next) => {
     try {
       const token = socket.handshake.auth?.token as string | undefined;
       if (!token) return next(new Error("Missing token"));
       const payload = jwt.verify(token, JWT_SECRET) as { userId: string };
-      (socket as any).userId = payload.userId;
+      socket.data.userId = payload.userId;
       next();
     } catch (e) {
       next(new Error("Invalid token"));
     }
   });
 
-  io.on("connection", async (socket) => {
-    const userId = (socket as any).userId as string;
+  io.on("connection", async (socket: AuthedSocket) => {
+    const userId = socket.data.userId!;
+    const me = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, displayName: true, username: true }
+    });
+    socket.data.displayName = me?.displayName;
+    socket.data.username = me?.username;
 
-    // Join all conversation rooms the user participates in
     const convs = await prisma.conversation.findMany({
       where: { users: { some: { id: userId } } },
       select: { id: true }
     });
     convs.forEach(c => socket.join(`conv:${c.id}`));
 
-    // Optional: typing indicator
     socket.on("typing", (data: { conversationId: string; isTyping: boolean }) => {
-      socket.to(`conv:${data.conversationId}`).emit("typing", { userId, isTyping: data.isTyping });
+      const name = socket.data.displayName || socket.data.username || "Someone";
+      io?.to(`conv:${data.conversationId}`).emit("typing", {
+        userId,
+        displayName: name,
+        isTyping: data.isTyping
+      });
     });
   });
 

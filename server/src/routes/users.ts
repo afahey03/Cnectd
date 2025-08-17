@@ -10,4 +10,18 @@ router.get("/me", requireAuth, async (req: AuthedRequest, res) => {
   res.json({ user });
 });
 
+router.get("/search", async (req, res) => {
+  const q = String(req.query.q || "").trim().toLowerCase();
+  if (!q) return res.json({ results: [] });
+
+  const results = await prisma.user.findMany({
+    where: { username: { contains: q, mode: "insensitive" } },
+    select: { id: true, username: true, displayName: true },
+    take: 20,
+    orderBy: { username: "asc" }
+  });
+
+  res.json({ results });
+});
+
 export default router;

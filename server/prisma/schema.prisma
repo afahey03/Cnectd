@@ -8,15 +8,18 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  username     String    @unique
-  displayName  String
-  createdAt    DateTime  @default(now())
+  id          String   @id @default(uuid())
+  username    String   @unique
+  displayName String
+  createdAt   DateTime @default(now())
 
   friendsSent     FriendRequest[] @relation("FriendsSent")
   friendsReceived FriendRequest[] @relation("FriendsReceived")
   conversations   Conversation[]  @relation("UserConversations")
   messages        Message[]
+
+  deliveryReceipts DeliveryReceipt[] @relation("UserDeliveryReceipts")
+  dmSeens          DmSeen[]          @relation("UserDmSeen")
 }
 
 model FriendRequest {
@@ -31,13 +34,15 @@ model FriendRequest {
 }
 
 model Conversation {
-  id        String        @id @default(uuid())
-  isGroup   Boolean       @default(false)
+  id        String   @id @default(uuid())
+  isGroup   Boolean  @default(false)
   name      String?
-  createdAt DateTime      @default(now())
+  createdAt DateTime @default(now())
 
-  users    User[]         @relation("UserConversations")
+  users    User[]    @relation("UserConversations")
   messages Message[]
+
+  dmSeens DmSeen[] @relation("ConversationDmSeen")
 }
 
 model Message {
@@ -50,5 +55,36 @@ model Message {
   conversation Conversation @relation(fields: [conversationId], references: [id])
   sender       User         @relation(fields: [senderId], references: [id])
 
+  deliveryReceipts DeliveryReceipt[] @relation("MessageDeliveryReceipts")
+  dmSeens          DmSeen[]          @relation("MessageDmSeen")
+
   @@index([conversationId, createdAt])
+}
+
+model DeliveryReceipt {
+  id        String   @id @default(uuid())
+  messageId String
+  toUserId  String
+  createdAt DateTime @default(now())
+
+  message Message @relation("MessageDeliveryReceipts", fields: [messageId], references: [id])
+  toUser  User    @relation("UserDeliveryReceipts", fields: [toUserId], references: [id])
+
+  @@unique([messageId, toUserId])
+  @@index([toUserId])
+}
+
+model DmSeen {
+  id             String   @id @default(uuid())
+  conversationId String
+  userId         String
+  messageId      String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation("ConversationDmSeen", fields: [conversationId], references: [id])
+  user         User         @relation("UserDmSeen", fields: [userId], references: [id])
+  message      Message      @relation("MessageDmSeen", fields: [messageId], references: [id])
+
+  @@unique([conversationId, userId]) // latest seen per user in a DM
+  @@index([messageId])
 }

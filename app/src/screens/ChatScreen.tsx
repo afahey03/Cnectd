@@ -28,18 +28,24 @@ function debounce<T extends (...args: any[]) => void>(fn: T, ms: number) {
   let t: any; return (...args: Parameters<T>) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 }
 
+type LocalStatus = 'sending' | 'sent' | 'delivered' | 'seen';
+
 export default function ChatScreen() {
   const { params }: any = useRoute();
   const { conversationId } = params;
   const socketRef = useSocket();
   const me = useAuth(s => s.user);
+
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const listRef = useRef<FlatList<Msg>>(null);
+
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({});
 
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  const statusMapRef = useRef<Record<string, LocalStatus>>({});
 
   useEffect(() => {
     (async () => {
@@ -54,10 +60,16 @@ export default function ChatScreen() {
     const s = socketRef.current;
     if (!s) return;
 
-    const onNew = (payload: { message: Msg }) => {
-      if (payload.message.conversationId === conversationId) {
-        setMessages(prev => [...prev, payload.message]);
-        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
+    const onNew = async (payload: { message: Msg }) => {
+      const msg = payload.message;
+      if (msg.conversationId !== conversationId) return;
+
+      setMessages(prev => [...prev, msg]);
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
+
+      if (msg.senderId !== me?.id) {
+        void api.post('/receipts/delivered', { messageId: msg.id });
+        void api.post('/receipts/seen', { conversationId, messageId: msg.id });
       }
     };
 
@@ -65,22 +77,42 @@ export default function ChatScreen() {
       if (!payload || payload.userId === me?.id) return;
       setTypingUsers(prev => {
         const next = { ...prev };
-        if (payload.isTyping) {
-          next[payload.userId] = payload.displayName;
-        } else {
-          delete next[payload.userId];
-        }
+        if (payload.isTyping) next[payload.userId] = payload.displayName;
+        else delete next[payload.userId];
         return next;
       });
     };
 
+    const onDelivered = (payload: { messageId: string; toUserId: string }) => {
+      const msg = messages.find(m => m.id === payload.messageId);
+      if (!msg || msg.senderId !== me?.id) return;
+      const current = statusMapRef.current[payload.messageId] || 'sent';
+      if (current !== 'seen') {
+        statusMapRef.current[payload.messageId] = 'delivered';
+        setMessages(prev => [...prev]);
+      }
+    };
+
+    const onSeen = (payload: { conversationId: string; messageId: string; userId: string }) => {
+      if (payload.conversationId !== conversationId) return;
+      const msg = messages.find(m => m.id === payload.messageId);
+      if (!msg || msg.senderId !== me?.id) return;
+      statusMapRef.current[payload.messageId] = 'seen';
+      setMessages(prev => [...prev]);
+    };
+
     s.on('msg:new', onNew);
     s.on('typing', onTyping);
+    s.on('msg:delivered', onDelivered);
+    s.on('msg:seen', onSeen);
+
     return () => {
       s.off('msg:new', onNew);
       s.off('typing', onTyping);
+      s.off('msg:delivered', onDelivered);
+      s.off('msg:seen', onSeen);
     };
-  }, [socketRef.current, conversationId, me?.id]);
+  }, [socketRef.current, conversationId, me?.id, messages]);
 
   const loadEarlier = async () => {
     if (!nextCursor || loadingMore) return;
@@ -108,6 +140,7 @@ export default function ChatScreen() {
       sender: { id: me.id, username: me.username, displayName: me.displayName } as any,
       conversationId
     };
+    statusMapRef.current[tempId] = 'sending';
     setMessages(prev => [...prev, optimistic]);
     setInput('');
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
@@ -115,15 +148,21 @@ export default function ChatScreen() {
     try {
       const res = await api.post(`/messages/${conversationId}`, { content: text });
       const serverMsg: Msg = res.data.message;
+
       setMessages(prev => prev.map(m => (m.id === tempId ? serverMsg : m)));
+      delete statusMapRef.current[tempId];
+      statusMapRef.current[serverMsg.id] = 'sent';
     } catch {
       setMessages(prev => prev.map(m => (m.id === tempId ? { ...m, content: `${m.content} (failed)` } : m)));
+      statusMapRef.current[tempId] = 'sending';
     }
   };
 
   const renderItem = ({ item }: { item: Msg }) => {
     const isMe = item.senderId === me?.id;
     const time = new Date(item.createdAt).toLocaleTimeString();
+    const myStatus = isMe ? (statusMapRef.current[item.id] || 'sent') : null;
+
     return (
       <View style={{ paddingVertical: 4, paddingHorizontal: 8 }}>
         {!isMe && (
@@ -147,6 +186,17 @@ export default function ChatScreen() {
           <Text style={{ fontSize: 10, color: '#666', marginTop: 4, alignSelf: 'flex-end' }}>
             {time}
           </Text>
+
+          {isMe && (
+            <Text style={{ fontSize: 10, color: '#888', marginTop: 2, alignSelf: 'flex-end' }}>
+              {{
+                sending: 'sending…',
+                sent: 'sent',
+                delivered: 'delivered',
+                seen: 'seen'
+              }[myStatus!]}
+            </Text>
+          )}
         </View>
       </View>
     );
@@ -163,7 +213,7 @@ export default function ChatScreen() {
   }
 
   const typingNames = Object.values(typingUsers);
-  const typingVisible = Object.keys(typingUsers).length > 0;
+  const typingVisible = typingNames.length > 0;
 
   return (
     <SafeAreaView style={{ flex: 1 }}>

@@ -1,41 +1,31 @@
-import { MD3LightTheme, MD3DarkTheme } from 'react-native-paper';
+import { MD3DarkTheme } from 'react-native-paper';
 import { Platform } from 'react-native';
 
-export const colors = {
-  primary: '#4C6FFF',
-  primaryDark: '#3C57CC',
-  bg: '#0B0D12',
-  card: '#12151C',
-  border: '#202532',
-  text: '#E6E9F2',
-  textMuted: '#94A0B4',
-  success: '#34C759',
-  bubbleMine: '#2B7A0B', // subtle green
-  bubbleMineSoft: '#DCF8C6',
-  bubbleOther: '#1B1F2A',
-};
-
-export const lightTheme = {
-  ...MD3LightTheme,
-  colors: {
-    ...MD3LightTheme.colors,
-    primary: colors.primary,
-    background: '#F7F9FC',
-    surface: '#FFFFFF',
-    onSurface: '#0B0D12',
-    outline: '#E6E9F2',
-  },
+export const palette = {
+  bg: '#0B0E14',
+  card: '#121721',
+  cardAlt: '#0F1420',
+  border: '#1E2633',
+  text: '#E7ECF5',
+  textMuted: '#9AA6B2',
+  primary: '#5B8CFF',
+  primaryDim: '#476FCC',
+  success: '#3DDC97',
+  danger: '#FF6B6B',
+  bubbleMine: '#1F2A44',
+  bubbleOther: '#151B27',
+  inputBg: '#111724',
 };
 
 export const darkTheme = {
   ...MD3DarkTheme,
   colors: {
     ...MD3DarkTheme.colors,
-    primary: colors.primary,
-    background: colors.bg,
-    surface: colors.card,
-    onSurface: colors.text,
-    outline: colors.border,
+    primary: palette.primary,
+    background: palette.bg,
+    surface: palette.card,
+    onSurface: palette.text,
+    outline: palette.border,
   },
 };
 

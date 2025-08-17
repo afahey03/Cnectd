@@ -1,85 +1,65 @@
 import React, { useState } from 'react';
-import { View, TextInput, Button, FlatList, Text } from 'react-native';
+import { View, TextInput, FlatList, Text, TouchableOpacity } from 'react-native';
+import Screen from '../ui/Screen';
+import ListItem from '../ui/ListItem';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { palette } from '../ui/theme';
 import { useNavigation } from '@react-navigation/native';
 
-async function startDm(userId: string) {
-  const res = await api.post('/conversations/dm', { otherUserId: userId });
-  return res.data.conversation;
-}
-
 export default function FriendsScreen() {
-  const [query, setQuery] = useState('');
   const nav = useNavigation<any>();
-
+  const [q, setQ] = useState('');
   const search = useQuery({
-    queryKey: ['user-search', query],
-    enabled: query.length >= 2,
-    queryFn: async () => (await api.get('/users/search', { params: { q: query } })).data.results
-  });
-
-  const pending = useQuery({
-    queryKey: ['pending'],
-    queryFn: async () => (await api.get('/friends/pending')).data
+    queryKey: ['search', q],
+    queryFn: async () => q ? (await api.get(`/users/search?query=${encodeURIComponent(q)}`)).data.users : [],
   });
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
-      <TextInput placeholder="Search usernames…" value={query} onChangeText={setQuery}
-        style={{ borderWidth: 1, padding: 12, borderRadius: 8 }} />
+    <Screen>
+      <TextInput
+        value={q}
+        onChangeText={setQ}
+        placeholder="Search users"
+        placeholderTextColor={palette.textMuted}
+        style={{
+          backgroundColor: palette.inputBg, borderWidth: 1, borderColor: palette.border,
+          color: palette.text, borderRadius: 10, padding: 12, marginVertical: 10
+        }}
+      />
       <FlatList
-        data={search.data || []}
-        keyExtractor={(i: any) => i.id}
-        renderItem={({ item }) => (
-          <View style={{ paddingVertical: 8, flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text>@{item.username} • {item.displayName}</Text>
-            <Button title="Add" onPress={async () => {
-              await api.post('/friends/request', { toUserId: item.id });
-              pending.refetch();
-            }} />
-            <Button
-              title="DM"
-              onPress={async () => {
-                try {
-                  const conv = await startDm(item.id);
-                  nav.navigate('Chat', { conversationId: conv.id });
-                } catch (e) {
-                  console.warn('Could not start DM (are you friends yet?)');
-                }
-              }}
-            />
-          </View>
+        data={search.data ?? []}
+        keyExtractor={(u: any) => u.id}
+        renderItem={({ item }: any) => (
+          <ListItem
+            title={item.displayName}
+            subtitle={`@${item.username}`}
+            right={(
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity
+                  onPress={async () => { await api.post('/friends/request', { toUserId: item.id }); }}
+                  style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: palette.primary }}
+                >
+                  <Text style={{ color: palette.primary, fontWeight: '700' }}>Add</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={async () => {
+                    try {
+                      const res = await api.post('/conversations/dm', { otherUserId: item.id });
+                      const conv = res.data.conversation;
+                      const title = item.displayName;
+                      nav.navigate('Chat', { conversationId: conv.id, title });
+                    } catch { }
+                  }}
+                  style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: palette.primary }}
+                >
+                  <Text style={{ color: '#0A1020', fontWeight: '700' }}>DM</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          />
         )}
       />
-      <Text style={{ marginTop: 16, fontWeight: '700' }}>Incoming</Text>
-      <FlatList
-        data={pending.data?.incoming || []}
-        keyExtractor={(i: any) => i.id}
-        renderItem={({ item }) => (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}>
-            <Text>@{item.from.username} • {item.from.displayName}</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Button title="Accept" onPress={async () => {
-                await api.post('/friends/respond', { requestId: item.id, accept: true });
-                pending.refetch();
-              }} />
-              <Button title="Deny" onPress={async () => {
-                await api.post('/friends/respond', { requestId: item.id, accept: false });
-                pending.refetch();
-              }} />
-            </View>
-          </View>
-        )}
-      />
-      <Text style={{ marginTop: 16, fontWeight: '700' }}>Outgoing</Text>
-      <FlatList
-        data={pending.data?.outgoing || []}
-        keyExtractor={(i: any) => i.id}
-        renderItem={({ item }) => (
-          <Text style={{ paddingVertical: 8 }}>To @{item.to.username} (pending)</Text>
-        )}
-      />
-    </View>
+    </Screen>
   );
 }

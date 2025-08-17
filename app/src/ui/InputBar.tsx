@@ -1,36 +1,37 @@
 import React from 'react';
-import { View, TextInput, Button, Platform } from 'react-native';
+import { View, TextInput, TouchableOpacity, Text } from 'react-native';
+import { palette } from './theme';
 
 export default function InputBar({
   value, onChangeText, onSend,
-}: {
-  value: string;
-  onChangeText: (t: string) => void;
-  onSend: () => void;
-}) {
+}: { value: string; onChangeText: (t: string) => void; onSend: () => void; }) {
   return (
-    <View style={{ flexDirection: 'row', gap: 8, padding: 8, borderTopWidth: 1, borderColor: '#1E2430' }}>
+    <View style={{
+      flexDirection: 'row', gap: 8, padding: 10, borderTopWidth: 1,
+      borderColor: palette.border, backgroundColor: palette.card
+    }}>
       <TextInput
         value={value}
         onChangeText={onChangeText}
         placeholder="Message…"
-        placeholderTextColor="#666"
+        placeholderTextColor={palette.textMuted}
         style={{
-          borderWidth: 1,
-          borderColor: '#2A3344',
-          flex: 1,
-          paddingVertical: 12,
-          paddingHorizontal: 14,
-          borderRadius: 20,
-          color: '#111',
-          backgroundColor: '#fff'
+          flex: 1, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 20,
+          color: palette.text, backgroundColor: palette.inputBg, borderWidth: 1, borderColor: palette.border
         }}
         onSubmitEditing={onSend}
         returnKeyType="send"
         autoCapitalize="sentences"
         autoCorrect
       />
-      <Button title="Send" onPress={onSend} />
+      <TouchableOpacity
+        onPress={onSend}
+        style={{
+          backgroundColor: palette.primary, borderRadius: 16, paddingHorizontal: 14,
+          alignItems: 'center', justifyContent: 'center'
+        }}>
+        <Text style={{ color: '#0A1020', fontWeight: '700' }}>Send</Text>
+      </TouchableOpacity>
     </View>
   );
 }

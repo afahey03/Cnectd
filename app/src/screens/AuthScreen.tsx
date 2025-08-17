@@ -1,62 +1,71 @@
 import React, { useState } from 'react';
-import { View, TextInput, Button, Text } from 'react-native';
-import { useAuth } from '../store/auth';
+import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import Screen from '../ui/Screen';
+import { palette } from '../ui/theme';
 import { api } from '../api/client';
-import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '../store/auth';
 
 export default function AuthScreen() {
-  const register = useAuth(s => s.register);
-  const login = useAuth(s => s.login);
+  const { setAuth } = useAuth.getState() as any;
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
 
-  const { data } = useQuery({
-    queryKey: ['check-username', username],
-    enabled: username.length >= 3,
-    queryFn: async () => {
-      try {
-        const res = await api.get(`/auth/check-username/${username}`);
-        return res.data;
-      } catch {
-        return { available: false };
+  const submit = async () => {
+    const name = username.trim().toLowerCase();
+    if (!name) return;
+    try {
+      // try register; if taken, login
+      const avail = await api.get(`/auth/check-username/${name}`);
+      let res;
+      if (avail.data?.available) {
+        res = await api.post('/auth/register', { username: name, displayName: displayName || username });
+      } else {
+        res = await api.post('/auth/login', { username: name });
       }
-    }
-  });
+      setAuth(res.data.user, res.data.token);
+    } catch (e) { }
+  };
 
   return (
-    <View style={{ padding: 24, gap: 12 }}>
-      <Text style={{ fontSize: 28, fontWeight: '700' }}>Cnectd</Text>
-      <Text>Pick a unique username (or login if it exists)</Text>
-
-      <TextInput
-        placeholder="username"
-        autoCapitalize="none"
-        value={username}
-        onChangeText={setUsername}
-        style={{ borderWidth: 1, padding: 12, borderRadius: 8 }}
-      />
-      <TextInput
-        placeholder="display name (for new users)"
-        value={displayName}
-        onChangeText={setDisplayName}
-        style={{ borderWidth: 1, padding: 12, borderRadius: 8 }}
-      />
-
-      {username.length >= 3 && (
-        <Text style={{ color: data?.available ? 'green' : 'red' }}>
-          {data?.available ? 'Available (Register)' : 'Taken (Login)'}
+    <Screen>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1, justifyContent: 'center', gap: 18 }}
+      >
+        <Text style={{ color: palette.text, fontSize: 28, fontWeight: '800', textAlign: 'center' }}>Cnectd</Text>
+        <Text style={{ color: palette.textMuted, textAlign: 'center', marginBottom: 8 }}>
+          Pick a unique username (or login if it exists)
         </Text>
-      )}
 
-      <Button
-        title={data?.available ? 'Register' : 'Login'}
-        onPress={() =>
-          data?.available
-            ? register(username, displayName || username)
-            : login(username)
-        }
-        disabled={username.length < 3}
-      />
-    </View>
+        <View style={{ gap: 10 }}>
+          <TextInput
+            value={username}
+            onChangeText={setUsername}
+            placeholder="@username"
+            placeholderTextColor={palette.textMuted}
+            style={{
+              backgroundColor: palette.inputBg, borderWidth: 1, borderColor: palette.border,
+              color: palette.text, borderRadius: 12, padding: 14
+            }}
+          />
+          <TextInput
+            value={displayName}
+            onChangeText={setDisplayName}
+            placeholder="Display name"
+            placeholderTextColor={palette.textMuted}
+            style={{
+              backgroundColor: palette.inputBg, borderWidth: 1, borderColor: palette.border,
+              color: palette.text, borderRadius: 12, padding: 14
+            }}
+          />
+        </View>
+
+        <TouchableOpacity onPress={submit} style={{
+          backgroundColor: palette.primary, borderRadius: 12, padding: 14, marginTop: 6
+        }}>
+          <Text style={{ color: '#0A1020', fontWeight: '800', textAlign: 'center' }}>Continue</Text>
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
+    </Screen>
   );
 }

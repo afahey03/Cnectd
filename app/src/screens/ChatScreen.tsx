@@ -44,7 +44,7 @@ export default function ChatScreen() {
       const res = await api.get(`/messages/${conversationId}`);
       setMessages(res.data.messages);
       setNextCursor(res.data.nextCursor ?? null);
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 0);
+      scrollToBottom(false);
     })();
   }, [conversationId]);
 
@@ -180,6 +180,10 @@ export default function ChatScreen() {
   const typingNames = Object.values(typingUsers);
   const typingVisible = typingNames.length > 0;
 
+
+  const scrollToBottom = (animated = false) =>
+    setTimeout(() => listRef.current?.scrollToEnd({ animated }), 0);
+
   return (
     <Screen>
       <KeyboardAvoidingView
@@ -189,6 +193,7 @@ export default function ChatScreen() {
       >
         <View style={{ flex: 1 }}>
           <FlatList
+            ref={listRef}
             data={messages}
             keyExtractor={(m) => m.id}
             renderItem={renderItem}

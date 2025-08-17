@@ -5,6 +5,7 @@ import authRoutes from "./routes/auth";
 import userRoutes from "./routes/users";
 import friendRoutes from "./routes/friends";
 import conversationRoutes from "./routes/conversations";
+import messageRoutes from "./routes/messages";
 
 const app = express();
 const prisma = new PrismaClient();
@@ -15,6 +16,7 @@ app.use("/auth", authRoutes);
 app.use("/users", userRoutes);
 app.use("/friends", friendRoutes);
 app.use("/conversations", conversationRoutes);
+app.use("/messages", messageRoutes);
 
 app.get("/", (req, res) => {
   res.send("Cnectd API is running 🚀");

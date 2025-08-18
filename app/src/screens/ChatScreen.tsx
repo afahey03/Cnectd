@@ -1,13 +1,22 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, KeyboardAvoidingView, Platform, Text } from 'react-native';
+import {
+  View,
+  KeyboardAvoidingView,
+  Platform,
+  Text,
+  FlatList,
+  Keyboard,
+  TextInput,
+  TouchableOpacity,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context'; // ✅ add this
 import { useRoute } from '@react-navigation/native';
 import { api } from '../api/client';
 import { useSocket } from '../hooks/useSocket';
 import { useAuth } from '../store/auth';
 import Screen from '../ui/Screen';
 import Bubble from '../ui/Bubble';
-import InputBar from '../ui/InputBar';
-import { FlatList } from 'react-native';
+import { palette } from '../ui/theme';
 
 type Msg = {
   id: string;
@@ -39,6 +48,9 @@ export default function ChatScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const statusMapRef = useRef<Record<string, LocalStatus>>({});
 
+  const scrollToBottom = (animated = false) =>
+    setTimeout(() => listRef.current?.scrollToEnd({ animated }), 0);
+
   useEffect(() => {
     (async () => {
       const res = await api.get(`/messages/${conversationId}`);
@@ -47,6 +59,15 @@ export default function ChatScreen() {
       scrollToBottom(false);
     })();
   }, [conversationId]);
+
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => scrollToBottom(true));
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    if (input.length > 0) scrollToBottom(true);
+  }, [input]);
 
   useEffect(() => {
     const s = socketRef.current;
@@ -180,16 +201,12 @@ export default function ChatScreen() {
   const typingNames = Object.values(typingUsers);
   const typingVisible = typingNames.length > 0;
 
-
-  const scrollToBottom = (animated = false) =>
-    setTimeout(() => listRef.current?.scrollToEnd({ animated }), 0);
-
   return (
     <Screen>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 150 : 0}
       >
         <View style={{ flex: 1 }}>
           <FlatList
@@ -208,7 +225,9 @@ export default function ChatScreen() {
             }
             contentContainerStyle={{ paddingTop: 12, paddingBottom: 8 }}
             onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+            onLayout={() => scrollToBottom(false)}
           />
+
           {typingVisible && (
             <View style={{ paddingHorizontal: 12, paddingBottom: 4 }}>
               <Text style={{ fontSize: 12, color: '#94A0B4' }}>
@@ -216,15 +235,63 @@ export default function ChatScreen() {
               </Text>
             </View>
           )}
-          <InputBar
-            value={input}
-            onChangeText={(t) => {
-              setInput(t);
-              socketRef.current?.emit('typing', { conversationId, isTyping: true });
-              sendTypingStopped();
-            }}
-            onSend={send}
-          />
+
+          {/* ✅ Rounded input bar (outer wrapper is transparent; only capsule is visible) */}
+          <SafeAreaView edges={['bottom']} style={{ backgroundColor: 'transparent' }}>
+            <View style={{ paddingHorizontal: 10, paddingTop: 4, paddingBottom: 8 }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: palette.inputBg,
+                  borderRadius: 28,        // <- outer capsule
+                  borderWidth: 1,
+                  borderColor: palette.border,
+                  paddingVertical: 6,
+                  paddingLeft: 12,
+                  paddingRight: 6,
+                  marginHorizontal: 4,
+                  shadowColor: '#000',
+                  shadowOpacity: 0.15,
+                  shadowRadius: 8,
+                  shadowOffset: { width: 0, height: 2 },
+                  elevation: 3,
+                }}
+              >
+                <TextInput
+                  value={input}
+                  onChangeText={(t) => {
+                    setInput(t);
+                    socketRef.current?.emit('typing', { conversationId, isTyping: true });
+                    sendTypingStopped();
+                  }}
+                  onFocus={() => scrollToBottom(true)}
+                  placeholder="Type a message…"
+                  placeholderTextColor={palette.textMuted}
+                  style={{
+                    flex: 1,
+                    color: palette.text,
+                    paddingVertical: 10,
+                    paddingHorizontal: 8,
+                  }}
+                  returnKeyType="send"
+                  onSubmitEditing={send}
+                />
+                <TouchableOpacity
+                  onPress={send}
+                  style={{
+                    backgroundColor: palette.primary,
+                    borderRadius: 22,
+                    paddingVertical: 10,
+                    paddingHorizontal: 16,
+                    marginLeft: 6,
+                  }}
+                >
+                  <Text style={{ color: '#0A1020', fontWeight: '800' }}>Send</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </SafeAreaView>
         </View>
       </KeyboardAvoidingView>
     </Screen>

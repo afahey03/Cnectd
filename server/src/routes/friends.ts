@@ -16,7 +16,6 @@ router.post("/request", requireAuth, async (req: AuthedRequest, res) => {
   if (!toUserId) return res.status(400).json({ error: "toUserId required" });
   if (toUserId === fromId) return res.status(400).json({ error: "Cannot friend yourself" });
 
-  // Prevent duplicates and circular dupes
   const existing = await prisma.friendRequest.findFirst({
     where: {
       OR: [

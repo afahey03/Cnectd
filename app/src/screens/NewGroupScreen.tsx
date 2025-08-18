@@ -3,6 +3,7 @@ import { View, Text, TextInput, Button, TouchableOpacity, FlatList, ActivityIndi
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { useNavigation } from '@react-navigation/native';
+import { palette } from '../ui/theme';
 
 type Friend = { id: string; username: string; displayName: string };
 
@@ -49,9 +50,11 @@ export default function NewGroupScreen() {
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
-      <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 8 }}>New Group</Text>
+      <Text style={{ fontSize: 20, fontWeight: '700', color: palette.text }}>New Group</Text>
 
-      <Text>Group name (optional)</Text>
+      <Text style={{ marginTop: 12, fontSize: 16, color: palette.text }}>
+        Group name (optional)
+      </Text>
       <TextInput
         value={name}
         onChangeText={setName}
@@ -59,7 +62,9 @@ export default function NewGroupScreen() {
         style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginVertical: 8 }}
       />
 
-      <Text style={{ marginTop: 8, marginBottom: 4, fontWeight: '700' }}>Select friends</Text>
+      <Text style={{ marginTop: 12, fontSize: 16, color: palette.text }}>
+        Select friends
+      </Text>
 
       {friendsQ.isLoading ? (
         <ActivityIndicator />
@@ -76,7 +81,7 @@ export default function NewGroupScreen() {
                   alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#eee'
                 }}>
                   <View>
-                    <Text style={{ fontWeight: '600' }}>{item.displayName}</Text>
+                    <Text style={{ color: '#666', fontWeight: '600' }}>{item.displayName}</Text>
                     <Text style={{ color: '#666' }}>@{item.username}</Text>
                   </View>
                   <View style={{

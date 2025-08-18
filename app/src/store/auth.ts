@@ -22,7 +22,6 @@ export const useAuth = create<AuthState>((set, get) => ({
   deviceId: null,
 
   init: async () => {
-    // stable device id
     let deviceId = await SecureStore.getItemAsync('deviceId');
     if (!deviceId) {
       deviceId = uuidv4();
@@ -36,7 +35,6 @@ export const useAuth = create<AuthState>((set, get) => ({
         const me = await api.get('/users/me').then(r => r.data.user as User);
         set({ user: me });
       } catch {
-        // token likely expired
         await SecureStore.deleteItemAsync('token');
         setAuthToken(null);
         set({ token: null, user: null });

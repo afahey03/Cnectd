@@ -24,7 +24,7 @@ type Msg = {
   content: string;
   createdAt: string;
   senderId: string;
-  sender?: { id: string; username: string; displayName: string };
+  sender?: { id: string; username: string; displayName: string; avatarColor?: string };
   conversationId: string;
 };
 
@@ -183,6 +183,7 @@ export default function ChatScreen() {
     const time = new Date(item.createdAt).toLocaleTimeString();
     const status = isMe ? (statusMapRef.current[item.id] || 'sent') : undefined;
     const displayName = item.sender?.displayName ?? item.sender?.username ?? 'User';
+    const senderColor = item.sender?.avatarColor;
 
     if (isMe) {
       return (
@@ -199,7 +200,7 @@ export default function ChatScreen() {
 
     return (
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginVertical: 2, gap: 8 }}>
-        <Avatar name={displayName} size={28} />
+        <Avatar name={displayName} size={28} color={senderColor} />
         <View style={{ flex: 1 }}>
           <Bubble
             mine={false}

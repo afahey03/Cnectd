@@ -100,7 +100,7 @@ router.get("/mine", requireAuth, async (req: AuthedRequest, res) => {
   const convs = await prisma.conversation.findMany({
     where: { users: { some: { id: uid } } },
     include: {
-      users: { select: { id: true, username: true, displayName: true } },
+      users: { select: { id: true, username: true, displayName: true, avatarColor: true } },
       messages: { take: 1, orderBy: { createdAt: "desc" } }
     },
     orderBy: { createdAt: "desc" }

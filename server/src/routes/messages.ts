@@ -28,7 +28,7 @@ router.get("/:conversationId", requireAuth, async (req: AuthedRequest, res) => {
     where,
     orderBy: { createdAt: "desc" },
     take: limit,
-    include: { sender: { select: { id: true, username: true, displayName: true } } }
+    include: { sender: { select: { id: true, username: true, displayName: true, avatarColor: true } } }
   });
 
   const asc = messages.slice().reverse();
@@ -57,7 +57,7 @@ router.post("/:conversationId", requireAuth, async (req: AuthedRequest, res) => 
 
   const msg = await prisma.message.findUnique({
     where: { id: created.id },
-    include: { sender: { select: { id: true, username: true, displayName: true } } }
+    include: { sender: { select: { id: true, username: true, displayName: true, avatarColor: true } } }
   });
 
   io?.to(`conv:${conversationId}`).emit("msg:new", { message: msg });

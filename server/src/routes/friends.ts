@@ -65,13 +65,13 @@ router.get("/pending", requireAuth, async (req: AuthedRequest, res) => {
 
   const incoming = await prisma.friendRequest.findMany({
     where: { toId: uid, status: "pending" },
-    include: { from: { select: { id: true, username: true, displayName: true } } },
+    include: { from: { select: { id: true, username: true, displayName: true, avatarColor: true } } },
     orderBy: { createdAt: "desc" },
   });
 
   const outgoing = await prisma.friendRequest.findMany({
     where: { fromId: uid, status: "pending" },
-    include: { to: { select: { id: true, username: true, displayName: true } } },
+    include: { to: { select: { id: true, username: true, displayName: true, avatarColor: true } } },
     orderBy: { createdAt: "desc" },
   });
 
@@ -90,8 +90,8 @@ router.get("/list", requireAuth, async (req: AuthedRequest, res) => {
       OR: [{ fromId: uid }, { toId: uid }],
     },
     include: {
-      from: { select: { id: true, username: true, displayName: true } },
-      to: { select: { id: true, username: true, displayName: true } },
+      from: { select: { id: true, username: true, displayName: true, avatarColor: true } },
+      to: { select: { id: true, username: true, displayName: true, avatarColor: true } },
     },
   });
 

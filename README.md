@@ -1,6 +1,6 @@
-# cnectd
+# Cnectd
 
-cnectd is a full-stack React Native chat application built with **Expo** and a **Node.js/Express backend**.  
+Cnectd is a full-stack React Native chat application built with **Expo** and a **Node.js/Express backend**.  
 It allows users to register with a unique username, manage friends, and chat via direct messages or groups.
 
 ---

@@ -3,16 +3,15 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-
 import HomeScreen from '../screens/HomeScreen';
 import FriendsScreen from '../screens/FriendsScreen';
 import ChatScreen from '../screens/ChatScreen';
 import NewGroupScreen from '../screens/NewGroupScreen';
 import AuthStack from './auth-stack';
-
 import HeaderNewGroup from '../ui/HeaderNewGroup';
 import Header from '../ui/Header';
 import HeaderLogout from '../ui/HeaderLogout';
+import MeScreen from '../screens/MeScreen';
 import { palette } from '../ui/theme';
 import { useAuth } from '../store/auth';
 
@@ -56,6 +55,16 @@ function MainTabs() {
           header: () => <Header title="Friends" right={<HeaderNewGroup />} />,
           tabBarIcon: ({ color, size }) => <Ionicons name="people-outline" color={color} size={size} />,
           tabBarLabel: 'Friends',
+        }}
+      />
+      <Tabs.Screen
+        name="MeTab"
+        component={MeScreen}
+        options={{
+          title: 'Me',
+          header: () => <Header title="Me" right={<HeaderLogout />} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="person-circle-outline" color={color} size={size} />,
+          tabBarLabel: 'Me',
         }}
       />
     </Tabs.Navigator>

@@ -11,6 +11,7 @@ model User {
   id          String   @id @default(uuid())
   username    String   @unique
   displayName String
+  avatarColor  String?
   createdAt   DateTime @default(now())
 
   friendsSent     FriendRequest[] @relation("FriendsSent")

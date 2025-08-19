@@ -7,13 +7,23 @@ const prisma = new PrismaClient();
 
 const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 
-// Register new user
+const AVATAR_COLORS = [
+  '#4C6FFF', '#12B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#E11D48', '#22C55E'
+];
+
 router.post("/register", async (req, res) => {
   const { username, displayName } = req.body;
 
   if (!username || !displayName) {
     return res.status(400).json({ error: "Username and displayName required" });
   }
+
+  const randomColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
+
+  const user = await prisma.user.create({
+    data: { username, displayName, avatarColor: randomColor },
+    select: { id: true, username: true, displayName: true, avatarColor: true, createdAt: true }
+  });
 
   try {
     const raw = String(username);
@@ -59,7 +69,6 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Check availability
 router.get("/check-username/:name", async (req, res) => {
   const name = String(req.params.name || "").trim().toLowerCase();
   if (!name || name.length < 3) return res.json({ available: false });
@@ -68,3 +77,4 @@ router.get("/check-username/:name", async (req, res) => {
 });
 
 export default router;
+

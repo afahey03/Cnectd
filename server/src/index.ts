@@ -25,7 +25,6 @@ app.get("/", (_req, res) => res.send("Cnectd API is running 🚀"));
 const PORT = process.env.PORT || 4000;
 const server = http.createServer(app);
 
-// init Socket.IO
 initSocket(server);
 
 server.listen(PORT, () => {

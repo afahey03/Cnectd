@@ -4,7 +4,7 @@ import { api, setAuthToken } from '../api/client';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
-type User = { id: string; username: string; displayName: string };
+type User = { id: string; username: string; displayName: string; avatarColor?: string };
 
 type AuthState = {
   user: User | null;

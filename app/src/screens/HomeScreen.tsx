@@ -53,12 +53,13 @@ export default function HomeScreen() {
             const other = (item.users || []).find((u: any) => u.id !== me?.id) || item.users?.[0];
             const otherName = other?.displayName || other?.username || 'User';
             const subtitle = item.lastMessage?.content ?? '';
+            const otherColor = other?.avatarColor;
 
             return (
               <ListItem
                 title={otherName}
                 subtitle={subtitle}
-                left={<Avatar name={otherName} size={40} />}
+                left={<Avatar name={otherName} size={40} color={otherColor} />}
                 onPress={() => nav.navigate('Chat', { conversationId: item.id, title: otherName })}
               />
             );

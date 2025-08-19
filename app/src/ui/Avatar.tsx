@@ -16,7 +16,8 @@ export default function Avatar({
   name,
   size = 36,
   rounded = true,
-}: { name: string; size?: number; rounded?: boolean }) {
+  color,
+}: { name: string; size?: number; rounded?: boolean; color?: string }) {
   const initials = name
     .split(' ')
     .map(s => s[0])
@@ -25,7 +26,7 @@ export default function Avatar({
     .join('')
     .toUpperCase();
 
-  const color = colors[hash(name) % colors.length];
+  const bg = color || colors[hash(name) % colors.length];
   const radius = rounded ? size / 2 : 8;
 
   return (
@@ -34,7 +35,7 @@ export default function Avatar({
         width: size,
         height: size,
         borderRadius: radius,
-        backgroundColor: color,
+        backgroundColor: bg,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,

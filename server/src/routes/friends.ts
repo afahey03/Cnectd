@@ -99,4 +99,35 @@ router.get("/list", requireAuth, async (req: AuthedRequest, res) => {
   res.json({ friends });
 });
 
+router.post("/remove", requireAuth, async (req: AuthedRequest, res) => {
+  const uid = req.userId!;
+  const { otherUserId } = req.body as { otherUserId: string };
+
+  if (!otherUserId) return res.status(400).json({ error: "otherUserId required" });
+  if (otherUserId === uid) return res.status(400).json({ error: "Cannot remove yourself" });
+
+  const result = await prisma.friendRequest.deleteMany({
+    where: {
+      status: "accepted",
+      OR: [
+        { fromId: uid, toId: otherUserId },
+        { fromId: otherUserId, toId: uid },
+      ],
+    },
+  });
+
+  await prisma.friendRequest.deleteMany({
+    where: {
+      status: "pending",
+      OR: [
+        { fromId: uid, toId: otherUserId },
+        { fromId: otherUserId, toId: uid },
+      ],
+    },
+  });
+
+  return res.json({ ok: true, removed: result.count });
+});
+
+
 export default router;

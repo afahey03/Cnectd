@@ -141,6 +141,21 @@ export default function FriendsScreen() {
     }
   };
 
+  const doUnfriend = async (user: any) => {
+    if (busyId) return;
+    setBusyId(user.id);
+    try {
+      await api.post('/friends/remove', { otherUserId: user.id });
+      Alert.alert('Removed', `You and ${user.displayName} are no longer friends.`);
+      qc.invalidateQueries({ queryKey: ['friends', 'list'] });
+      qc.invalidateQueries({ queryKey: ['friends', 'requests'] });
+    } catch (e: any) {
+      Alert.alert('Could not remove', e?.response?.data?.error ?? 'Unknown error');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const renderUserRow = (user: any, actions: 'search' | 'friend') => {
     const isBusy = busyId === user.id;
     return (
@@ -149,34 +164,74 @@ export default function FriendsScreen() {
         subtitle={`@${user.username}`}
         right={(
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            {actions === 'search' && (
-              <Pressable
-                onPress={() => doAdd(user)}
-                disabled={isBusy}
-                hitSlop={10}
-                style={{
-                  paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8,
-                  borderWidth: 1, borderColor: palette.primary, opacity: isBusy ? 0.5 : 1
-                }}
-              >
-                <Text style={{ color: palette.primary, fontWeight: '700' }}>
-                  {isBusy ? '...' : 'Add'}
-                </Text>
-              </Pressable>
+            {actions === 'search' ? (
+              <>
+                <Pressable
+                  onPress={() => doAdd(user)}
+                  disabled={isBusy}
+                  hitSlop={10}
+                  style={{
+                    paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8,
+                    borderWidth: 1, borderColor: palette.primary, opacity: isBusy ? 0.5 : 1
+                  }}
+                >
+                  <Text style={{ color: palette.primary, fontWeight: '700' }}>
+                    {isBusy ? '...' : 'Add'}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => doDM(user)}
+                  disabled={isBusy}
+                  hitSlop={10}
+                  style={{
+                    paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8,
+                    backgroundColor: palette.primary, opacity: isBusy ? 0.5 : 1
+                  }}
+                >
+                  <Text style={{ color: '#0A1020', fontWeight: '700' }}>
+                    {isBusy ? '...' : 'DM'}
+                  </Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Pressable
+                  onPress={() => doDM(user)}
+                  disabled={isBusy}
+                  hitSlop={10}
+                  style={{
+                    paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8,
+                    backgroundColor: palette.primary, opacity: isBusy ? 0.5 : 1
+                  }}
+                >
+                  <Text style={{ color: '#0A1020', fontWeight: '700' }}>
+                    {isBusy ? '...' : 'DM'}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() =>
+                    Alert.alert(
+                      'Remove friend?',
+                      `Unfriend ${user.displayName}?`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Remove', style: 'destructive', onPress: () => doUnfriend(user) },
+                      ]
+                    )
+                  }
+                  disabled={isBusy}
+                  hitSlop={10}
+                  style={{
+                    paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8,
+                    borderWidth: 1, borderColor: palette.border, opacity: isBusy ? 0.5 : 1
+                  }}
+                >
+                  <Text style={{ color: palette.textMuted, fontWeight: '700' }}>
+                    {isBusy ? '...' : 'Unfriend'}
+                  </Text>
+                </Pressable>
+              </>
             )}
-            <Pressable
-              onPress={() => doDM(user)}
-              disabled={isBusy}
-              hitSlop={10}
-              style={{
-                paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8,
-                backgroundColor: palette.primary, opacity: isBusy ? 0.5 : 1
-              }}
-            >
-              <Text style={{ color: '#0A1020', fontWeight: '700' }}>
-                {isBusy ? '...' : 'DM'}
-              </Text>
-            </Pressable>
           </View>
         )}
       />

@@ -7,12 +7,15 @@ import { api } from '../api/client';
 import { useNavigation } from '@react-navigation/native';
 import { palette } from '../ui/theme';
 import Avatar from '../ui/Avatar';
+import { useAuth } from '../store/auth';
 
 export default function HomeScreen() {
   const nav = useNavigation<any>();
+  const me = useAuth(s => s.user);
+
   const q = useQuery({
     queryKey: ['conversations'],
-    queryFn: async () => (await api.get('/conversations/mine')).data.conversations
+    queryFn: async () => (await api.get('/conversations/mine')).data.conversations,
   });
 
   const data = q.data ?? [];
@@ -27,9 +30,7 @@ export default function HomeScreen() {
           </Text>
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 6 }}>
             <TouchableOpacity
-              onPress={() => {
-                nav.navigate('FriendsTab');
-              }}
+              onPress={() => nav.navigate('FriendsTab')}
               style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: palette.primary }}
             >
               <Text style={{ color: palette.primary, fontWeight: '700' }}>Find friends</Text>
@@ -46,18 +47,27 @@ export default function HomeScreen() {
         data={data}
         keyExtractor={(c: any) => c.id}
         renderItem={({ item }: any) => {
-          const isGroup = item.isGroup;
-          const otherUsers = item.users || [];
+          const isGroup = !!item.isGroup;
 
-          const title = isGroup
-            ? (item.name ? `# ${item.name}` : `Group • ${otherUsers.length} members`)
-            : otherUsers.map((u: any) => u.displayName).join(', ');
+          if (!isGroup) {
+            const other = (item.users || []).find((u: any) => u.id !== me?.id) || item.users?.[0];
+            const otherName = other?.displayName || other?.username || 'User';
+            const subtitle = item.lastMessage?.content ?? '';
 
+            return (
+              <ListItem
+                title={otherName}
+                subtitle={subtitle}
+                left={<Avatar name={otherName} size={40} />}
+                onPress={() => nav.navigate('Chat', { conversationId: item.id, title: otherName })}
+              />
+            );
+          }
+
+          const members = item.users || [];
+          const title = item.name ? `# ${item.name}` : `Group • ${members.length} members`;
           const subtitle = item.lastMessage?.content ?? '';
-
-          const avatarLabel = isGroup
-            ? (item.name || `Group ${otherUsers.length}`)
-            : (otherUsers[0]?.displayName || otherUsers[0]?.username || 'User');
+          const avatarLabel = item.name || `Group ${members.length}`;
 
           return (
             <ListItem

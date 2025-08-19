@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { useNavigation } from '@react-navigation/native';
 import { palette } from '../ui/theme';
+import Avatar from '../ui/Avatar';
 
 export default function HomeScreen() {
   const nav = useNavigation<any>();
@@ -45,14 +46,24 @@ export default function HomeScreen() {
         data={data}
         keyExtractor={(c: any) => c.id}
         renderItem={({ item }: any) => {
-          const title = item.isGroup
-            ? (item.name ? `# ${item.name}` : `Group • ${item.users.length} members`)
-            : item.users.map((u: any) => u.displayName).join(', ');
+          const isGroup = item.isGroup;
+          const otherUsers = item.users || [];
+
+          const title = isGroup
+            ? (item.name ? `# ${item.name}` : `Group • ${otherUsers.length} members`)
+            : otherUsers.map((u: any) => u.displayName).join(', ');
+
           const subtitle = item.lastMessage?.content ?? '';
+
+          const avatarLabel = isGroup
+            ? (item.name || `Group ${otherUsers.length}`)
+            : (otherUsers[0]?.displayName || otherUsers[0]?.username || 'User');
+
           return (
             <ListItem
               title={title}
               subtitle={subtitle}
+              left={<Avatar name={avatarLabel} size={40} />}
               onPress={() => nav.navigate('Chat', { conversationId: item.id, title })}
             />
           );

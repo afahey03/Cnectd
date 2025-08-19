@@ -9,7 +9,7 @@ import {
   TextInput,
   TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context'; // ✅ add this
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
 import { api } from '../api/client';
 import { useSocket } from '../hooks/useSocket';
@@ -17,6 +17,7 @@ import { useAuth } from '../store/auth';
 import Screen from '../ui/Screen';
 import Bubble from '../ui/Bubble';
 import { palette } from '../ui/theme';
+import Avatar from '../ui/Avatar';
 
 type Msg = {
   id: string;
@@ -181,16 +182,35 @@ export default function ChatScreen() {
     const isMe = item.senderId === me?.id;
     const time = new Date(item.createdAt).toLocaleTimeString();
     const status = isMe ? (statusMapRef.current[item.id] || 'sent') : undefined;
+    const displayName = item.sender?.displayName ?? item.sender?.username ?? 'User';
+
+    if (isMe) {
+      return (
+        <Bubble
+          mine
+          content={item.content}
+          time={time}
+          status={status}
+          showName={false}
+          name={displayName}
+        />
+      );
+    }
 
     return (
-      <Bubble
-        mine={isMe}
-        content={item.content}
-        time={time}
-        status={status}
-        showName={!isMe}
-        name={item.sender?.displayName ?? item.sender?.username ?? 'User'}
-      />
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginVertical: 2, gap: 8 }}>
+        <Avatar name={displayName} size={28} />
+        <View style={{ flex: 1 }}>
+          <Bubble
+            mine={false}
+            content={item.content}
+            time={time}
+            status={undefined}
+            showName
+            name={displayName}
+          />
+        </View>
+      </View>
     );
   };
 
@@ -244,7 +264,7 @@ export default function ChatScreen() {
                   flexDirection: 'row',
                   alignItems: 'center',
                   backgroundColor: palette.inputBg,
-                  borderRadius: 28,        // <- outer capsule
+                  borderRadius: 28,
                   borderWidth: 1,
                   borderColor: palette.border,
                   paddingVertical: 6,

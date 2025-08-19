@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Alert, View, Text, TextInput, FlatList, Pressable, ActivityIndicator,
 } from 'react-native';
 import Screen from '../ui/Screen';
 import ListItem from '../ui/ListItem';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { palette } from '../ui/theme';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../store/auth';
 
 function Segments({
@@ -48,18 +48,46 @@ export default function FriendsScreen() {
 
   const [tab, setTab] = useState<'Search' | 'Friends' | 'Requests'>('Search');
   const [q, setQ] = useState('');
+  const [debouncedQ, setDebouncedQ] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(q.trim()), 250);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  useFocusEffect(
+    useCallback(() => {
+      qc.invalidateQueries({ queryKey: ['friends', 'list'] });
+      qc.invalidateQueries({ queryKey: ['friends', 'requests'] });
+    }, [qc])
+  );
+
+  const token = useAuth(s => s.token);
+
+  if (!token) {
+    return (
+      <Screen>
+        <View style={{ paddingTop: 20 }}>
+          <ActivityIndicator color={palette.primary} />
+        </View>
+      </Screen>
+    );
+  }
+
   const searchQ = useQuery({
-    queryKey: ['friends', 'search', q],
-    enabled: tab === 'Search' && q.trim().length >= 1,
+    queryKey: ['friends', 'search', debouncedQ],
+    enabled: tab === 'Search' && !!token && debouncedQ.length >= 1,
     queryFn: async () => {
-      const query = q.trim();
-      const { data } = await api.get(`/users/search?query=${encodeURIComponent(query)}`);
+      const { data } = await api.get('/users/search', { params: { query: debouncedQ } });
       const arr = Array.isArray(data?.users) ? data.users : [];
       return me ? arr.filter((u: any) => u.id !== me.id) : arr;
     },
     initialData: [],
+    placeholderData: keepPreviousData,
+    refetchOnMount: 'always',
+    refetchOnReconnect: true,
+    retry: 2,
     staleTime: 30_000,
   });
 
@@ -67,10 +95,17 @@ export default function FriendsScreen() {
     queryKey: ['friends', 'list'],
     enabled: tab === 'Friends',
     queryFn: async () => {
-      const { data } = await api.get('/friends/list');
-      return Array.isArray(data?.friends) ? data.friends : [];
+      try {
+        const { data } = await api.get('/friends/list');
+        return Array.isArray(data?.friends) ? data.friends : [];
+      } catch {
+        return [];
+      }
     },
     initialData: [],
+    refetchOnMount: 'always',
+    refetchOnReconnect: true,
+    retry: 2,
     staleTime: 10_000,
   });
 
@@ -78,21 +113,26 @@ export default function FriendsScreen() {
     queryKey: ['friends', 'requests'],
     enabled: tab === 'Requests',
     queryFn: async () => {
+      const safeShape = (data: any) => ({
+        incoming: Array.isArray(data?.incoming) ? data.incoming : [],
+        outgoing: Array.isArray(data?.outgoing) ? data.outgoing : [],
+      });
       try {
         const { data } = await api.get('/friends/requests');
-        return {
-          incoming: Array.isArray(data?.incoming) ? data.incoming : [],
-          outgoing: Array.isArray(data?.outgoing) ? data.outgoing : [],
-        };
+        return safeShape(data);
       } catch {
-        const { data } = await api.get('/friends/pending');
-        return {
-          incoming: Array.isArray(data?.incoming) ? data.incoming : [],
-          outgoing: Array.isArray(data?.outgoing) ? data.outgoing : [],
-        };
+        try {
+          const { data } = await api.get('/friends/pending');
+          return safeShape(data);
+        } catch {
+          return { incoming: [], outgoing: [] };
+        }
       }
     },
     initialData: { incoming: [], outgoing: [] },
+    refetchOnMount: 'always',
+    refetchOnReconnect: true,
+    retry: 2,
     staleTime: 10_000,
   });
 
@@ -132,6 +172,7 @@ export default function FriendsScreen() {
       if (accept) {
         Alert.alert('Friend added', 'You are now friends!');
         qc.invalidateQueries({ queryKey: ['friends', 'list'] });
+        qc.invalidateQueries({ queryKey: ['conversations'] });
       }
       qc.invalidateQueries({ queryKey: ['friends', 'requests'] });
     } catch (e: any) {
@@ -149,6 +190,7 @@ export default function FriendsScreen() {
       Alert.alert('Removed', `You and ${user.displayName} are no longer friends.`);
       qc.invalidateQueries({ queryKey: ['friends', 'list'] });
       qc.invalidateQueries({ queryKey: ['friends', 'requests'] });
+      qc.invalidateQueries({ queryKey: ['conversations'] });
     } catch (e: any) {
       Alert.alert('Could not remove', e?.response?.data?.error ?? 'Unknown error');
     } finally {
@@ -240,8 +282,7 @@ export default function FriendsScreen() {
 
   const renderRequestRow = (req: any, kind: 'incoming' | 'outgoing') => {
     const isBusy = busyId === req.id;
-    const other =
-      kind === 'incoming' ? req.fromUser ?? req.user : req.toUser ?? req.user;
+    const other = kind === 'incoming' ? req.fromUser ?? req.user : req.toUser ?? req.user;
     const title = other?.displayName ?? other?.username ?? 'User';
     const subtitle = other?.username ? `@${other.username}` : kind === 'incoming' ? 'Incoming request' : 'Outgoing request';
     return (
@@ -308,18 +349,22 @@ export default function FriendsScreen() {
         }}
         returnKeyType="search"
       />
-      {searchQ.isFetching && q.trim().length >= 1 && (
+      {searchQ.isFetching && debouncedQ.length >= 1 && (
         <View style={{ paddingVertical: 6 }}>
           <ActivityIndicator color={palette.primary} />
         </View>
       )}
+      {/* TEMP DEBUG */}
+      <Text style={{ color: palette.textMuted, fontSize: 12, marginBottom: 6 }}>
+        q="{q}" debounced="{debouncedQ}" results={(searchQ.data as any[])?.length ?? 0}
+      </Text>
       <FlatList
         data={searchQ.data as any[]}
         keyExtractor={(u: any) => u.id}
         keyboardShouldPersistTaps="handled"
         renderItem={({ item }) => renderUserRow(item, 'search')}
         ListEmptyComponent={
-          q.trim().length >= 1 && !searchQ.isFetching ? (
+          debouncedQ.length >= 1 && !searchQ.isFetching ? (
             <View style={{ paddingTop: 24 }}>
               <Text style={{ color: palette.textMuted, textAlign: 'center' }}>
                 No users found.

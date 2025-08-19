@@ -5,10 +5,6 @@ import { requireAuth, AuthedRequest } from "../middleware/auth";
 const router = Router();
 const prisma = new PrismaClient();
 
-/**
- * Send a friend request to another user by their userId
- * Body: { toUserId: string }
- */
 router.post("/request", requireAuth, async (req: AuthedRequest, res) => {
   const fromId = req.userId!;
   const { toUserId } = req.body as { toUserId: string };
@@ -36,10 +32,6 @@ router.post("/request", requireAuth, async (req: AuthedRequest, res) => {
   res.json({ request: fr });
 });
 
-/**
- * Respond to a friend request you received
- * Body: { requestId: string, accept: boolean }
- */
 router.post("/respond", requireAuth, async (req: AuthedRequest, res) => {
   const uid = req.userId!;
   const { requestId, accept } = req.body as { requestId: string; accept: boolean };
@@ -57,9 +49,6 @@ router.post("/respond", requireAuth, async (req: AuthedRequest, res) => {
   res.json({ request: updated });
 });
 
-/**
- * Get your pending incoming/outgoing requests
- */
 router.get("/pending", requireAuth, async (req: AuthedRequest, res) => {
   const uid = req.userId!;
 
@@ -78,9 +67,6 @@ router.get("/pending", requireAuth, async (req: AuthedRequest, res) => {
   res.json({ incoming, outgoing });
 });
 
-/**
- * Get your accepted friends (derived from accepted requests)
- */
 router.get("/list", requireAuth, async (req: AuthedRequest, res) => {
   const uid = req.userId!;
 

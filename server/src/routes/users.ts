@@ -36,4 +36,25 @@ router.patch("/me", requireAuth, async (req: AuthedRequest, res) => {
   res.json({ user: updated });
 });
 
+router.get("/search", requireAuth, async (req: AuthedRequest, res) => {
+  const uid = req.userId!;
+  const raw = String(req.query.query ?? "").trim();
+  if (!raw) return res.json({ users: [] });
+
+  const users = await prisma.user.findMany({
+    where: {
+      id: { not: uid },
+      OR: [
+        { username: { contains: raw, mode: "insensitive" } },
+        { displayName: { contains: raw, mode: "insensitive" } },
+      ],
+    },
+    orderBy: [{ displayName: "asc" }, { username: "asc" }],
+    take: 20,
+    select: { id: true, username: true, displayName: true, avatarColor: true },
+  });
+
+  res.json({ users });
+});
+
 export default router;

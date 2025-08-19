@@ -1,80 +1,69 @@
 import { Router } from "express";
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import jwt from "jsonwebtoken";
 
-const router = Router();
 const prisma = new PrismaClient();
-
+const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 
 const AVATAR_COLORS = [
-  '#4C6FFF', '#12B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#E11D48', '#22C55E'
+  "#4C6FFF", "#12B981", "#F59E0B", "#EF4444", "#8B5CF6", "#06B6D4", "#E11D48", "#22C55E"
 ];
 
 router.post("/register", async (req, res) => {
-  const { username, displayName } = req.body;
-
-  if (!username || !displayName) {
-    return res.status(400).json({ error: "Username and displayName required" });
-  }
-
-  const randomColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
-
-  const user = await prisma.user.create({
-    data: { username, displayName, avatarColor: randomColor },
-    select: { id: true, username: true, displayName: true, avatarColor: true, createdAt: true }
-  });
-
   try {
-    const raw = String(username);
-    const clean = raw.trim().toLowerCase();
+    let { username, displayName } = req.body as { username?: string; displayName?: string };
 
-    const existing = await prisma.user.findUnique({ where: { username: clean } });
-    if (existing) return res.status(400).json({ error: "Username already taken" });
+    const uname = (username ?? "").trim().toLowerCase();
+    const dname = (displayName ?? "").trim();
+
+    if (!uname || !/^[a-z0-9._-]{3,30}$/.test(uname)) {
+      return res.status(400).json({ error: "Username must be 3–30 chars [a-z0-9._-]." });
+    }
+    if (!dname) {
+      return res.status(400).json({ error: "displayName required" });
+    }
+
+    const exists = await prisma.user.findUnique({ where: { username: uname } });
+    if (exists) return res.status(409).json({ error: "Username is taken" });
+
+    const randomColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
 
     const user = await prisma.user.create({
-      data: { username: clean, displayName },
+      data: { username: uname, displayName: dname, avatarColor: randomColor },
+      select: { id: true, username: true, displayName: true, avatarColor: true, createdAt: true }
     });
 
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "30d" });
+    return res.json({ user, token });
 
-    res.json({ user, token });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error" });
+  } catch (e: any) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return res.status(409).json({ error: "Username is taken" });
+    }
+    console.error(e);
+    return res.status(500).json({ error: "Server error" });
   }
 });
 
-// Login (by username only for now, I'll change it later)
 router.post("/login", async (req, res) => {
-  const { username } = req.body;
-
-  if (!username) {
-    return res.status(400).json({ error: "Username required" });
-  }
-
   try {
-    const raw = String(username);
-    const clean = raw.trim().toLowerCase();
+    const uname = String(req.body?.username ?? "").trim().toLowerCase();
+    if (!uname) return res.status(400).json({ error: "username required" });
 
-    const user = await prisma.user.findUnique({ where: { username: clean } });
-    if (!user) return res.status(400).json({ error: "User not found" });
+    const user = await prisma.user.findUnique({
+      where: { username: uname },
+      select: { id: true, username: true, displayName: true, avatarColor: true, createdAt: true }
+    });
 
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-    res.json({ user, token });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error" });
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "30d" });
+    return res.json({ user, token });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: "Server error" });
   }
-});
-
-router.get("/check-username/:name", async (req, res) => {
-  const name = String(req.params.name || "").trim().toLowerCase();
-  if (!name || name.length < 3) return res.json({ available: false });
-  const existing = await prisma.user.findUnique({ where: { username: name } });
-  res.json({ available: !existing });
 });
 
 export default router;
-

@@ -112,7 +112,7 @@ export default function FriendsScreen() {
 
   const requestsQ = useQuery({
     queryKey: ['friends', 'requests'],
-    enabled: tab === 'Requests',
+    enabled: tab === 'Requests' || tab === 'Search',
     queryFn: async () => {
       const safeShape = (data: any) => ({
         incoming: Array.isArray(data?.incoming) ? data.incoming : [],
@@ -136,6 +136,15 @@ export default function FriendsScreen() {
     retry: 2,
     staleTime: 10_000,
   });
+
+  useEffect(() => {
+    const outgoing = (requestsQ.data as any)?.outgoing ?? [];
+    const ids: string[] = outgoing
+      .map((r: any) => r?.toUser?.id ?? r?.toId ?? r?.user?.id)
+      .filter(Boolean);
+    const map = Object.fromEntries(ids.map((id: string) => [id, true]));
+    setPendingSearchIds(map);
+  }, [requestsQ.data]);
 
   const doDM = async (user: any) => {
     if (busyId) return;

@@ -44,12 +44,15 @@ function Segments({
 export default function FriendsScreen() {
   const nav = useNavigation<any>();
   const me = useAuth(s => s.user);
+  const token = useAuth(s => s.token);
   const qc = useQueryClient();
 
   const [tab, setTab] = useState<'Search' | 'Friends' | 'Requests'>('Search');
   const [q, setQ] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  const [pendingSearchIds, setPendingSearchIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q.trim()), 250);
@@ -62,8 +65,6 @@ export default function FriendsScreen() {
       qc.invalidateQueries({ queryKey: ['friends', 'requests'] });
     }, [qc])
   );
-
-  const token = useAuth(s => s.token);
 
   if (!token) {
     return (
@@ -155,8 +156,9 @@ export default function FriendsScreen() {
     setBusyId(user.id);
     try {
       await api.post('/friends/request', { toUserId: user.id });
-      Alert.alert('Request sent', `Friend request sent to ${user.displayName}`);
+      setPendingSearchIds(prev => ({ ...prev, [user.id]: true }));
       qc.invalidateQueries({ queryKey: ['friends', 'requests'] });
+      Alert.alert('Request sent', `Friend request sent to ${user.displayName}`);
     } catch (e: any) {
       Alert.alert('Could not send', e?.response?.data?.error ?? 'Unknown error');
     } finally {
@@ -200,14 +202,25 @@ export default function FriendsScreen() {
 
   const renderUserRow = (user: any, actions: 'search' | 'friend') => {
     const isBusy = busyId === user.id;
-    return (
-      <ListItem
-        title={user.displayName}
-        subtitle={`@${user.username}`}
-        right={(
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {actions === 'search' ? (
-              <>
+
+    if (actions === 'search') {
+      const pending = !!pendingSearchIds[user.id];
+      return (
+        <ListItem
+          title={user.displayName}
+          subtitle={`@${user.username}`}
+          right={(
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {pending ? (
+                <View
+                  style={{
+                    paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8,
+                    borderWidth: 1, borderColor: palette.border, opacity: 0.8
+                  }}
+                >
+                  <Text style={{ color: palette.textMuted, fontWeight: '700' }}>Pending</Text>
+                </View>
+              ) : (
                 <Pressable
                   onPress={() => doAdd(user)}
                   disabled={isBusy}
@@ -221,59 +234,54 @@ export default function FriendsScreen() {
                     {isBusy ? '...' : 'Add'}
                   </Text>
                 </Pressable>
-                <Pressable
-                  onPress={() => doDM(user)}
-                  disabled={isBusy}
-                  hitSlop={10}
-                  style={{
-                    paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8,
-                    backgroundColor: palette.primary, opacity: isBusy ? 0.5 : 1
-                  }}
-                >
-                  <Text style={{ color: '#0A1020', fontWeight: '700' }}>
-                    {isBusy ? '...' : 'DM'}
-                  </Text>
-                </Pressable>
-              </>
-            ) : (
-              <>
-                <Pressable
-                  onPress={() => doDM(user)}
-                  disabled={isBusy}
-                  hitSlop={10}
-                  style={{
-                    paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8,
-                    backgroundColor: palette.primary, opacity: isBusy ? 0.5 : 1
-                  }}
-                >
-                  <Text style={{ color: '#0A1020', fontWeight: '700' }}>
-                    {isBusy ? '...' : 'DM'}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() =>
-                    Alert.alert(
-                      'Remove friend?',
-                      `Unfriend ${user.displayName}?`,
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Remove', style: 'destructive', onPress: () => doUnfriend(user) },
-                      ]
-                    )
-                  }
-                  disabled={isBusy}
-                  hitSlop={10}
-                  style={{
-                    paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8,
-                    borderWidth: 1, borderColor: palette.border, opacity: isBusy ? 0.5 : 1
-                  }}
-                >
-                  <Text style={{ color: palette.textMuted, fontWeight: '700' }}>
-                    {isBusy ? '...' : 'Unfriend'}
-                  </Text>
-                </Pressable>
-              </>
-            )}
+              )}
+            </View>
+          )}
+        />
+      );
+    }
+
+    return (
+      <ListItem
+        title={user.displayName}
+        subtitle={`@${user.username}`}
+        right={(
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Pressable
+              onPress={() => doDM(user)}
+              disabled={isBusy}
+              hitSlop={10}
+              style={{
+                paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8,
+                backgroundColor: palette.primary, opacity: isBusy ? 0.5 : 1
+              }}
+            >
+              <Text style={{ color: '#0A1020', fontWeight: '700' }}>
+                {isBusy ? '...' : 'DM'}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() =>
+                Alert.alert(
+                  'Remove friend?',
+                  `Unfriend ${user.displayName}?`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Remove', style: 'destructive', onPress: () => doUnfriend(user) },
+                  ]
+                )
+              }
+              disabled={isBusy}
+              hitSlop={10}
+              style={{
+                paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8,
+                borderWidth: 1, borderColor: palette.border, opacity: isBusy ? 0.5 : 1
+              }}
+            >
+              <Text style={{ color: palette.textMuted, fontWeight: '700' }}>
+                {isBusy ? '...' : 'Unfriend'}
+              </Text>
+            </Pressable>
           </View>
         )}
       />

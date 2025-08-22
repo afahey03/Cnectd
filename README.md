@@ -44,5 +44,5 @@ It allows users to register with a unique username, manage friends, and chat via
   - Real-time private chat between two users  
   - Message bubbles, timestamps, and sender labels
 
-- **Group Chat (planned)**  
+- **Group Chat**  
   Multi-user conversations with shared history.

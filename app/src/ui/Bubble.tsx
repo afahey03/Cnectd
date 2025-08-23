@@ -6,7 +6,7 @@ type Props = {
   mine: boolean;
   content: string;
   time?: string;
-  status?: 'sending' | 'sent' | 'delivered' | 'seen';
+  status?: 'sending' | 'sent' | 'delivered' | 'seen' | 'failed';
   showName?: boolean;
   name?: string;
   onLongPress?: () => void;

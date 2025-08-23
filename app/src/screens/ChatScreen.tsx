@@ -24,6 +24,7 @@ import Bubble from '../ui/Bubble';
 import { palette } from '../ui/theme';
 import Avatar from '../ui/Avatar';
 import { useDrafts } from '../store/drafts';
+import { useToast } from '../ui/toast';
 
 type Msg = {
   id: string;
@@ -34,7 +35,7 @@ type Msg = {
   conversationId: string;
 };
 
-type LocalStatus = 'sending' | 'sent' | 'delivered' | 'seen';
+type LocalStatus = 'sending' | 'sent' | 'delivered' | 'seen' | 'failed';
 
 const TYPING_TIMEOUT = 1200;
 function debounce<T extends (...args: any[]) => void>(fn: T, ms: number) {
@@ -46,10 +47,7 @@ export default function ChatScreen() {
   const { conversationId } = params;
   const socketRef = useSocket();
   const me = useAuth(s => s.user);
-
-  const draftText = useDrafts(s => s.drafts?.[conversationId] ?? '');
-  const setDraft = useDrafts(s => s.setDraft);
-  const clearDraft = useDrafts(s => s.clearDraft);
+  const toast = useToast();
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
@@ -57,7 +55,11 @@ export default function ChatScreen() {
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({});
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const statusMapRef = useRef<Record<string, LocalStatus>>({});
+
+  const atBottomRef = useRef(true);
+  const [showJump, setShowJump] = useState(false);
 
   const scrollToBottom = (animated = false) =>
     setTimeout(() => listRef.current?.scrollToEnd({ animated }), 0);
@@ -67,7 +69,6 @@ export default function ChatScreen() {
       const res = await api.get(`/messages/${conversationId}`);
       setMessages(res.data.messages);
       setNextCursor(res.data.nextCursor ?? null);
-      setInput(draftText || '');
       scrollToBottom(false);
     })();
   }, [conversationId]);
@@ -147,10 +148,19 @@ export default function ChatScreen() {
       const older: Msg[] = res.data.messages as Msg[];
       setMessages(prev => [...older, ...prev]);
       setNextCursor(res.data.nextCursor ?? null);
+    } catch (e: any) {
+      toast.show('Could not load earlier messages');
     } finally {
       setLoadingMore(false);
     }
   };
+
+  const onRefresh = useCallback(async () => {
+    if (!nextCursor) return;
+    setRefreshing(true);
+    await loadEarlier();
+    setRefreshing(false);
+  }, [nextCursor]);
 
   const send = async () => {
     const text = input.trim();
@@ -167,10 +177,7 @@ export default function ChatScreen() {
     };
     statusMapRef.current[tempId] = 'sending';
     setMessages(prev => [...prev, optimistic]);
-
     setInput('');
-    clearDraft(conversationId);
-
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
 
     try {
@@ -188,21 +195,42 @@ export default function ChatScreen() {
       delete statusMapRef.current[tempId];
       statusMapRef.current[serverMsg.id] = 'sent';
     } catch {
+      statusMapRef.current[tempId] = 'failed';
       setMessages(prev =>
-        prev.map(m => (m.id === tempId ? { ...m, content: `${m.content} (failed)` } : m))
+        prev.map(m => (m.id === tempId ? { ...m, content: m.content } : m))
       );
-      statusMapRef.current[tempId] = 'sending';
-      setInput(text);
-      setDraft(conversationId, text);
+      toast.show('Message failed. Tap to retry.');
     }
   };
 
-  const atBottomRef = useRef(true);
+  const retrySend = useCallback(async (failed: Msg) => {
+    if (!me) return;
+    const oldId = failed.id;
+
+    statusMapRef.current[oldId] = 'sending';
+    setMessages(prev => [...prev]);
+
+    try {
+      const res = await api.post(`/messages/${conversationId}`, { content: failed.content });
+      const serverMsg: Msg = res.data.message;
+
+      setMessages(prev => prev.map(m => (m.id === oldId ? serverMsg : m)));
+      delete statusMapRef.current[oldId];
+      statusMapRef.current[serverMsg.id] = 'sent';
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      statusMapRef.current[oldId] = 'failed';
+      setMessages(prev => [...prev]);
+      toast.show('Still failed to send');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+  }, [conversationId, me]);
 
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
-    atBottomRef.current =
-      layoutMeasurement.height + contentOffset.y >= contentSize.height - 40;
+    const atBottomNow = layoutMeasurement.height + contentOffset.y >= contentSize.height - 40;
+    atBottomRef.current = atBottomNow;
+    setShowJump(!atBottomNow);
   }, []);
 
   const maybeScrollToBottom = useCallback((animated = true) => {
@@ -215,29 +243,40 @@ export default function ChatScreen() {
     try {
       await Clipboard.setStringAsync(m.content);
       Haptics.selectionAsync();
-      const { useToast } = await import('../ui/toast');
-      useToast.getState().show('Copied to clipboard');
+      toast.show('Copied to clipboard');
     } catch { }
-  }, []);
+  }, [toast]);
 
   const renderItem = ({ item }: { item: Msg }) => {
     const isMe = item.senderId === me?.id;
-    const time = new Date(item.createdAt).toLocaleTimeString();
+    const time = new Date(item.createdAt).toLocaleTimeString([], {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
     const status = isMe ? (statusMapRef.current[item.id] || 'sent') : undefined;
+    const isFailed = status === 'failed';
     const displayName = item.sender?.displayName ?? item.sender?.username ?? 'User';
     const senderColor = item.sender?.avatarColor;
 
     if (isMe) {
+      const Wrapper: React.ComponentType<any> = isFailed ? Pressable : View;
       return (
-        <Bubble
-          mine
-          content={item.content}
-          time={time}
-          status={status}
-          showName={false}
-          name={displayName}
-          onLongPress={() => onLongPressMsg(item)}
-        />
+        <Wrapper {...(isFailed ? { onPress: () => retrySend(item) } : {})}>
+          <Bubble
+            mine
+            content={item.content}
+            time={time}
+            status={status}
+            showName={false}
+            name={displayName}
+            onLongPress={() => onLongPressMsg(item)}
+          />
+          {isFailed ? (
+            <Text style={{ color: palette.textMuted, fontSize: 12, marginTop: 2, textAlign: 'right' }}>
+              Tap to retry
+            </Text>
+          ) : null}
+        </Wrapper>
       );
     }
 
@@ -281,18 +320,11 @@ export default function ChatScreen() {
             renderItem={renderItem}
             onScroll={onScroll}
             scrollEventThrottle={16}
-            ListHeaderComponent={
-              nextCursor ? (
-                <View style={{ paddingVertical: 8, alignItems: 'center' }}>
-                  <Text onPress={loadEarlier} style={{ color: '#4C6FFF', fontWeight: '600' }}>
-                    {loadingMore ? 'Loading…' : 'Load earlier'}
-                  </Text>
-                </View>
-              ) : null
-            }
             contentContainerStyle={{ paddingTop: 12, paddingBottom: 8 }}
             onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
             onLayout={() => scrollToBottom(false)}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
           />
 
           {typingVisible && (
@@ -301,6 +333,30 @@ export default function ChatScreen() {
                 {typingNames.join(', ')} {typingNames.length > 1 ? 'are' : 'is'} typing…
               </Text>
             </View>
+          )}
+
+          {showJump && (
+            <Pressable
+              onPress={() => scrollToBottom(true)}
+              style={{
+                position: 'absolute',
+                right: 14,
+                bottom: 70,
+                backgroundColor: palette.card,
+                borderWidth: 1,
+                borderColor: palette.border,
+                paddingVertical: 8,
+                paddingHorizontal: 12,
+                borderRadius: 20,
+                shadowColor: '#000',
+                shadowOpacity: 0.15,
+                shadowRadius: 6,
+                shadowOffset: { width: 0, height: 2 },
+                elevation: 3,
+              }}
+            >
+              <Text style={{ color: palette.text, fontWeight: '700' }}>▼ Latest</Text>
+            </Pressable>
           )}
 
           <SafeAreaView edges={['bottom']} style={{ backgroundColor: 'transparent' }}>
@@ -328,7 +384,6 @@ export default function ChatScreen() {
                   value={input}
                   onChangeText={(t) => {
                     setInput(t);
-                    setDraft(conversationId, t);
                     socketRef.current?.emit('typing', { conversationId, isTyping: true });
                     sendTypingStopped();
                   }}

@@ -7,21 +7,29 @@ const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 
 export let io: Server | null = null;
 
-type AuthedSocket = Parameters<NonNullable<Server["on"]>>[1] extends (arg: infer T) => any ? T & {
-  data: { userId?: string; displayName?: string; username?: string }
-} : never;
+type AuthedSocket = Parameters<NonNullable<Server["on"]>>[1] extends (arg: infer T) => any
+  ? T & { data: { userId?: string; displayName?: string; username?: string } }
+  : never;
 
 export function initSocket(httpServer: any) {
   io = new Server(httpServer, {
     cors: { origin: process.env.CORS_ORIGIN || "*" }
   });
 
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth?.token as string | undefined;
       if (!token) return next(new Error("Missing token"));
+
       const payload = jwt.verify(token, JWT_SECRET) as { userId: string };
-      socket.data.userId = payload.userId;
+
+      const user = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { id: true, deletedAt: true }
+      });
+      if (!user || user.deletedAt) return next(new Error("Account deleted"));
+
+      socket.data.userId = user.id;
       next();
     } catch (e) {
       next(new Error("Invalid token"));
@@ -30,10 +38,16 @@ export function initSocket(httpServer: any) {
 
   io.on("connection", async (socket: AuthedSocket) => {
     const userId = socket.data.userId!;
+    if (!userId) {
+      socket.disconnect(true);
+      return;
+    }
+
     const me = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, displayName: true, username: true }
     });
+
     socket.data.displayName = me?.displayName;
     socket.data.username = me?.username;
 

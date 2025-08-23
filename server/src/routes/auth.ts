@@ -24,7 +24,10 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ error: "displayName required" });
     }
 
-    const exists = await prisma.user.findUnique({ where: { username: uname } });
+    const exists = await prisma.user.findUnique({
+      where: { username: uname },
+      select: { id: true }
+    });
     if (exists) return res.status(409).json({ error: "Username is taken" });
 
     const randomColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
@@ -53,13 +56,17 @@ router.post("/login", async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { username: uname },
-      select: { id: true, username: true, displayName: true, avatarColor: true, createdAt: true }
+      select: { id: true, username: true, displayName: true, avatarColor: true, createdAt: true, deletedAt: true }
     });
 
     if (!user) return res.status(404).json({ error: "User not found" });
+    if (user.deletedAt) {
+      return res.status(410).json({ error: "Account deleted" });
+    }
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "30d" });
-    return res.json({ user, token });
+    const { deletedAt, ...publicUser } = user as any;
+    return res.json({ user: publicUser, token });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: "Server error" });

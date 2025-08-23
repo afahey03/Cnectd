@@ -5,18 +5,12 @@ import { requireAuth, AuthedRequest } from "../middleware/auth";
 const router = Router();
 const prisma = new PrismaClient();
 
-/**
- * Create or fetch a DM between you and another user.
- * Body: { otherUserId: string }
- * Requires you two to be friends (an accepted FriendRequest either direction).
- */
 router.post("/dm", requireAuth, async (req: AuthedRequest, res) => {
   const uid = req.userId!;
   const { otherUserId } = req.body as { otherUserId: string };
   if (!otherUserId) return res.status(400).json({ error: "otherUserId required" });
   if (otherUserId === uid) return res.status(400).json({ error: "Cannot DM yourself" });
 
-  // Check friendship
   const isFriend = await prisma.friendRequest.findFirst({
     where: {
       status: "accepted",
@@ -28,12 +22,11 @@ router.post("/dm", requireAuth, async (req: AuthedRequest, res) => {
   });
   if (!isFriend) return res.status(403).json({ error: "Not friends" });
 
-  // Find existing DM (isGroup=false) containing both users
   const existing = await prisma.conversation.findFirst({
     where: {
       isGroup: false,
       users: {
-        every: { // both must be in
+        every: {
           id: { in: [uid, otherUserId] }
         }
       }
@@ -43,7 +36,6 @@ router.post("/dm", requireAuth, async (req: AuthedRequest, res) => {
 
   if (existing) return res.json({ conversation: existing });
 
-  // Create new DM
   const conv = await prisma.conversation.create({
     data: {
       isGroup: false,
@@ -55,10 +47,6 @@ router.post("/dm", requireAuth, async (req: AuthedRequest, res) => {
   res.json({ conversation: conv });
 });
 
-/**
- * Create a group conversation with memberIds (you are automatically included).
- * Body: { name?: string, memberIds: string[] }
- */
 router.post("/group", requireAuth, async (req: AuthedRequest, res) => {
   const uid = req.userId!;
   const { name, memberIds } = req.body as { name?: string; memberIds: string[] };
@@ -92,9 +80,6 @@ router.post("/group", requireAuth, async (req: AuthedRequest, res) => {
   res.json({ conversation: conv });
 });
 
-/**
- * List conversations you're in (latest message preview).
- */
 router.get("/mine", requireAuth, async (req: AuthedRequest, res) => {
   const uid = req.userId!;
   const convs = await prisma.conversation.findMany({

@@ -43,6 +43,7 @@ router.get("/search", requireAuth, async (req: AuthedRequest, res) => {
 
   const users = await prisma.user.findMany({
     where: {
+      deletedAt: null,
       id: { not: uid },
       OR: [
         { username: { contains: raw, mode: "insensitive" } },
@@ -51,10 +52,32 @@ router.get("/search", requireAuth, async (req: AuthedRequest, res) => {
     },
     orderBy: [{ displayName: "asc" }, { username: "asc" }],
     take: 20,
-    select: { id: true, username: true, displayName: true, avatarColor: true },
+    select: { id: true, username: true, displayName: true, avatarColor: true, deletedAt: true },
   });
 
   res.json({ users });
+});
+
+router.delete("/me", requireAuth, async (req: AuthedRequest, res) => {
+  const uid = req.userId!;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: uid },
+      data: {
+        deletedAt: new Date(),
+        displayName: "Deleted User",
+        avatarColor: "#94A3B8",
+      },
+    });
+
+    await tx.friendRequest.deleteMany({
+      where: { OR: [{ fromId: uid }, { toId: uid }] },
+    });
+
+  });
+
+  return res.json({ ok: true });
 });
 
 export default router;

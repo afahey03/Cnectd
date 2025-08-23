@@ -6,10 +6,6 @@ import { io } from "../realtime/socket";
 const router = Router();
 const prisma = new PrismaClient();
 
-/**
- * Get the latest messages in a conversation you belong to
- * GET /messages/:conversationId?limit=50
- */
 router.get("/:conversationId", requireAuth, async (req: AuthedRequest, res) => {
   const uid = req.userId!;
   const { conversationId } = req.params;
@@ -36,10 +32,6 @@ router.get("/:conversationId", requireAuth, async (req: AuthedRequest, res) => {
   res.json({ messages: asc, nextCursor });
 });
 
-/**
- * Send a message to a conversation you belong to
- * POST /messages/:conversationId  { content: string }
- */
 router.post("/:conversationId", requireAuth, async (req: AuthedRequest, res) => {
   const uid = req.userId!;
   const { conversationId } = req.params;

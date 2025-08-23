@@ -29,4 +29,6 @@ export const darkTheme = {
   },
 };
 
+export const radius = { sm: 8, md: 12, lg: 20, pill: 999 };
+
 export const headerHeight = Platform.select({ ios: 52, android: 56, default: 56 });

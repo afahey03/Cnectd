@@ -47,7 +47,8 @@
     "react-native-webview": "13.13.5",
     "socket.io-client": "^4.8.1",
     "uuid": "^11.1.0",
-    "zustand": "^5.0.7"
+    "zustand": "^5.0.7",
+    "expo-clipboard": "~7.1.5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

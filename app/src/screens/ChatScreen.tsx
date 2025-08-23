@@ -25,6 +25,7 @@ import { palette } from '../ui/theme';
 import Avatar from '../ui/Avatar';
 import { useDrafts } from '../store/drafts';
 import { useToast } from '../ui/toast';
+import { relativeDayOrTime } from '../ui/time';
 
 type Msg = {
   id: string;
@@ -249,10 +250,7 @@ export default function ChatScreen() {
 
   const renderItem = ({ item }: { item: Msg }) => {
     const isMe = item.senderId === me?.id;
-    const time = new Date(item.createdAt).toLocaleTimeString([], {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
+    const time = relativeDayOrTime(item.createdAt);
     const status = isMe ? (statusMapRef.current[item.id] || 'sent') : undefined;
     const isFailed = status === 'failed';
     const displayName = item.sender?.displayName ?? item.sender?.username ?? 'User';

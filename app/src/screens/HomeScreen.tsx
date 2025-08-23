@@ -8,6 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { palette } from '../ui/theme';
 import Avatar from '../ui/Avatar';
 import { useAuth } from '../store/auth';
+import { relativeDayOrTime } from '../ui/time';
 
 export default function HomeScreen() {
   const nav = useNavigation<any>();
@@ -60,7 +61,14 @@ export default function HomeScreen() {
                 title={otherName}
                 subtitle={subtitle}
                 left={<Avatar name={otherName} size={40} color={otherColor} />}
-                onPress={() => nav.navigate('Chat', { conversationId: item.id, title: otherName })}
+                right={
+                  item.lastMessage?.createdAt ? (
+                    <Text style={{ color: palette.textMuted, fontSize: 12 }}>
+                      {relativeDayOrTime(item.lastMessage.createdAt)}
+                    </Text>
+                  ) : null
+                }
+                onPress={() => nav.navigate('Chat', { conversationId: item.id, title })}
               />
             );
           }
@@ -75,6 +83,13 @@ export default function HomeScreen() {
               title={title}
               subtitle={subtitle}
               left={<Avatar name={avatarLabel} size={40} />}
+              right={
+                item.lastMessage?.createdAt ? (
+                  <Text style={{ color: palette.textMuted, fontSize: 12 }}>
+                    {relativeDayOrTime(item.lastMessage.createdAt)}
+                  </Text>
+                ) : null
+              }
               onPress={() => nav.navigate('Chat', { conversationId: item.id, title })}
             />
           );

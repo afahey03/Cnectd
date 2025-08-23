@@ -10,6 +10,7 @@ import { palette } from '../ui/theme';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../store/auth';
 import { RefreshControl } from 'react-native';
+import { relativeDayOrTime } from '../ui/time';
 
 function Segments({
   tabs, value, onChange,
@@ -310,6 +311,9 @@ export default function FriendsScreen() {
         subtitle={subtitle}
         right={(
           <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Text style={{ color: palette.textMuted, fontSize: 12 }}>
+              {req?.createdAt ? relativeDayOrTime(req.createdAt) : ''}
+            </Text>
             {kind === 'incoming' ? (
               <>
                 <Pressable

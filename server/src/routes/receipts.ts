@@ -6,10 +6,6 @@ import { io } from "../realtime/socket";
 const prisma = new PrismaClient();
 const router = Router();
 
-/**
- * Mark a message as delivered to the current device/user.
- * Body: { messageId: string }
- */
 router.post("/delivered", requireAuth, async (req: AuthedRequest, res) => {
   const uid = req.userId!;
   const { messageId } = req.body as { messageId: string };
@@ -39,10 +35,6 @@ router.post("/delivered", requireAuth, async (req: AuthedRequest, res) => {
   res.json({ ok: true });
 });
 
-/**
- * Mark latest seen message for a DM (not groups)
- * Body: { conversationId: string, messageId: string }
- */
 router.post("/seen", requireAuth, async (req: AuthedRequest, res) => {
   const uid = req.userId!;
   const { conversationId, messageId } = req.body as { conversationId: string; messageId: string };

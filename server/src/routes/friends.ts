@@ -54,13 +54,13 @@ router.get("/pending", requireAuth, async (req: AuthedRequest, res) => {
 
   const incoming = await prisma.friendRequest.findMany({
     where: { toId: uid, status: "pending" },
-    include: { from: { select: { id: true, username: true, displayName: true, avatarColor: true } } },
+    include: { from: { select: { id: true, username: true, displayName: true, avatarColor: true, deletedAt: true } } },
     orderBy: { createdAt: "desc" },
   });
 
   const outgoing = await prisma.friendRequest.findMany({
     where: { fromId: uid, status: "pending" },
-    include: { to: { select: { id: true, username: true, displayName: true, avatarColor: true } } },
+    include: { to: { select: { id: true, username: true, displayName: true, avatarColor: true, deletedAt: true } } },
     orderBy: { createdAt: "desc" },
   });
 
@@ -76,12 +76,15 @@ router.get("/list", requireAuth, async (req: AuthedRequest, res) => {
       OR: [{ fromId: uid }, { toId: uid }],
     },
     include: {
-      from: { select: { id: true, username: true, displayName: true, avatarColor: true } },
-      to: { select: { id: true, username: true, displayName: true, avatarColor: true } },
+      from: { select: { id: true, username: true, displayName: true, avatarColor: true, deletedAt: true } },
+      to: { select: { id: true, username: true, displayName: true, avatarColor: true, deletedAt: true } },
     },
   });
 
-  const friends = accepted.map(fr => (fr.fromId === uid ? fr.to : fr.from));
+  const friends = accepted
+    .map(fr => (fr.fromId === uid ? fr.to : fr.from))
+    .filter(u => !u.deletedAt);
+
   res.json({ friends });
 });
 
@@ -114,6 +117,5 @@ router.post("/remove", requireAuth, async (req: AuthedRequest, res) => {
 
   return res.json({ ok: true, removed: result.count });
 });
-
 
 export default router;

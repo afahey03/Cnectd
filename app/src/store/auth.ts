@@ -51,11 +51,21 @@ export const useAuth = create<AuthState>((set, get) => ({
   },
 
   login: async (username) => {
-    const res = await api.post('/auth/login', { username });
-    const { token, user } = res.data as { token: string; user: User };
-    await SecureStore.setItemAsync('token', token);
-    setAuthToken(token);
-    set({ token, user });
+    try {
+      const res = await api.post('/auth/login', { username });
+      const { token, user } = res.data as { token: string; user: User };
+      await SecureStore.setItemAsync('token', token);
+      setAuthToken(token);
+      set({ token, user });
+    } catch (e: any) {
+      const msg = e?.response?.data?.error || 'Could not sign in';
+      if (e?.response?.status === 410) {
+        await SecureStore.deleteItemAsync('token');
+        setAuthToken(null);
+        set({ token: null, user: null });
+      }
+      throw new Error(msg);
+    }
   },
 
   logout: async () => {

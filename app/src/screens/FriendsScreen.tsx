@@ -140,7 +140,7 @@ export default function FriendsScreen() {
   useEffect(() => {
     const outgoing = (requestsQ.data as any)?.outgoing ?? [];
     const ids: string[] = outgoing
-      .map((r: any) => r?.toUser?.id ?? r?.toId ?? r?.user?.id)
+      .map((r: any) => r?.to?.id ?? r?.toId ?? r?.user?.id)
       .filter(Boolean);
     const map = Object.fromEntries(ids.map((id: string) => [id, true]));
     setPendingSearchIds(map);
@@ -299,9 +299,10 @@ export default function FriendsScreen() {
 
   const renderRequestRow = (req: any, kind: 'incoming' | 'outgoing') => {
     const isBusy = busyId === req.id;
-    const other = kind === 'incoming' ? req.fromUser ?? req.user : req.toUser ?? req.user;
+    const other = kind === 'incoming' ? (req.from ?? req.user) : (req.to ?? req.user);
     const title = other?.displayName ?? other?.username ?? 'User';
-    const subtitle = other?.username ? `@${other.username}` : kind === 'incoming' ? 'Incoming request' : 'Outgoing request';
+    const subtitle = other?.username ? `@${other.username}` : (kind === 'incoming' ? 'Incoming request' : 'Outgoing request');
+
     return (
       <ListItem
         title={title}
@@ -371,10 +372,12 @@ export default function FriendsScreen() {
           <ActivityIndicator color={palette.primary} />
         </View>
       )}
+
       {/* TEMP DEBUG */}
       <Text style={{ color: palette.textMuted, fontSize: 12, marginBottom: 6 }}>
         q="{q}" debounced="{debouncedQ}" results={(searchQ.data as any[])?.length ?? 0}
       </Text>
+
       <FlatList
         data={searchQ.data as any[]}
         keyExtractor={(u: any) => u.id}

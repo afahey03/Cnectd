@@ -1,4 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   KeyboardAvoidingView,
@@ -8,6 +10,9 @@ import {
   Keyboard,
   TextInput,
   TouchableOpacity,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
@@ -18,6 +23,7 @@ import Screen from '../ui/Screen';
 import Bubble from '../ui/Bubble';
 import { palette } from '../ui/theme';
 import Avatar from '../ui/Avatar';
+import { useDrafts } from '../store/drafts';
 
 type Msg = {
   id: string;
@@ -41,6 +47,10 @@ export default function ChatScreen() {
   const socketRef = useSocket();
   const me = useAuth(s => s.user);
 
+  const draftText = useDrafts(s => s.drafts?.[conversationId] ?? '');
+  const setDraft = useDrafts(s => s.setDraft);
+  const clearDraft = useDrafts(s => s.clearDraft);
+
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const listRef = useRef<FlatList<Msg>>(null);
@@ -57,6 +67,7 @@ export default function ChatScreen() {
       const res = await api.get(`/messages/${conversationId}`);
       setMessages(res.data.messages);
       setNextCursor(res.data.nextCursor ?? null);
+      setInput(draftText || '');
       scrollToBottom(false);
     })();
   }, [conversationId]);
@@ -77,8 +88,11 @@ export default function ChatScreen() {
     const onNew = (payload: { message: Msg }) => {
       const msg = payload.message;
       if (msg.conversationId !== conversationId) return;
-      setMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
+      setMessages(prev => {
+        const next = prev.some(m => m.id === msg.id) ? prev : [...prev, msg];
+        requestAnimationFrame(() => maybeScrollToBottom(true));
+        return next;
+      });
 
       if (msg.senderId !== me?.id) {
         void api.post('/receipts/delivered', { messageId: msg.id });
@@ -153,7 +167,10 @@ export default function ChatScreen() {
     };
     statusMapRef.current[tempId] = 'sending';
     setMessages(prev => [...prev, optimistic]);
+
     setInput('');
+    clearDraft(conversationId);
+
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
 
     try {
@@ -175,8 +192,33 @@ export default function ChatScreen() {
         prev.map(m => (m.id === tempId ? { ...m, content: `${m.content} (failed)` } : m))
       );
       statusMapRef.current[tempId] = 'sending';
+      setInput(text);
+      setDraft(conversationId, text);
     }
   };
+
+  const atBottomRef = useRef(true);
+
+  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    atBottomRef.current =
+      layoutMeasurement.height + contentOffset.y >= contentSize.height - 40;
+  }, []);
+
+  const maybeScrollToBottom = useCallback((animated = true) => {
+    if (atBottomRef.current) {
+      setTimeout(() => listRef.current?.scrollToEnd({ animated }), 0);
+    }
+  }, []);
+
+  const onLongPressMsg = useCallback(async (m: Msg) => {
+    try {
+      await Clipboard.setStringAsync(m.content);
+      Haptics.selectionAsync();
+      const { useToast } = await import('../ui/toast');
+      useToast.getState().show('Copied to clipboard');
+    } catch { }
+  }, []);
 
   const renderItem = ({ item }: { item: Msg }) => {
     const isMe = item.senderId === me?.id;
@@ -194,6 +236,7 @@ export default function ChatScreen() {
           status={status}
           showName={false}
           name={displayName}
+          onLongPress={() => onLongPressMsg(item)}
         />
       );
     }
@@ -209,6 +252,7 @@ export default function ChatScreen() {
             status={undefined}
             showName
             name={displayName}
+            onLongPress={() => onLongPressMsg(item)}
           />
         </View>
       </View>
@@ -235,6 +279,8 @@ export default function ChatScreen() {
             data={messages}
             keyExtractor={(m) => m.id}
             renderItem={renderItem}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
             ListHeaderComponent={
               nextCursor ? (
                 <View style={{ paddingVertical: 8, alignItems: 'center' }}>
@@ -257,7 +303,6 @@ export default function ChatScreen() {
             </View>
           )}
 
-          {/* ✅ Rounded input bar (outer wrapper is transparent; only capsule is visible) */}
           <SafeAreaView edges={['bottom']} style={{ backgroundColor: 'transparent' }}>
             <View style={{ paddingHorizontal: 10, paddingTop: 4, paddingBottom: 8 }}>
               <View
@@ -283,6 +328,7 @@ export default function ChatScreen() {
                   value={input}
                   onChangeText={(t) => {
                     setInput(t);
+                    setDraft(conversationId, t);
                     socketRef.current?.emit('typing', { conversationId, isTyping: true });
                     sendTypingStopped();
                   }}

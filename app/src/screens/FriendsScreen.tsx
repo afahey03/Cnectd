@@ -9,6 +9,7 @@ import { api } from '../api/client';
 import { palette } from '../ui/theme';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../store/auth';
+import { RefreshControl } from 'react-native';
 
 function Segments({
   tabs, value, onChange,
@@ -381,6 +382,13 @@ export default function FriendsScreen() {
       <FlatList
         data={searchQ.data as any[]}
         keyExtractor={(u: any) => u.id}
+        refreshControl={
+          <RefreshControl
+            tintColor={palette.textMuted}
+            refreshing={searchQ.isFetching}
+            onRefresh={() => searchQ.refetch()}
+          />
+        }
         keyboardShouldPersistTaps="handled"
         renderItem={({ item }) => renderUserRow(item, 'search')}
         ListEmptyComponent={
@@ -406,6 +414,13 @@ export default function FriendsScreen() {
       <FlatList
         data={friendsQ.data as any[]}
         keyExtractor={(u: any) => u.id}
+        refreshControl={
+          <RefreshControl
+            tintColor={palette.textMuted}
+            refreshing={searchQ.isFetching}
+            onRefresh={() => searchQ.refetch()}
+          />
+        }
         keyboardShouldPersistTaps="handled"
         renderItem={({ item }) => renderUserRow(item, 'friend')}
         ListEmptyComponent={
@@ -433,6 +448,13 @@ export default function FriendsScreen() {
       <FlatList
         data={(requestsQ.data as any).incoming}
         keyExtractor={(r: any) => r.id}
+        refreshControl={
+          <RefreshControl
+            tintColor={palette.textMuted}
+            refreshing={searchQ.isFetching}
+            onRefresh={() => searchQ.refetch()}
+          />
+        }
         keyboardShouldPersistTaps="handled"
         renderItem={({ item }) => renderRequestRow(item, 'incoming')}
         ListEmptyComponent={
@@ -448,6 +470,13 @@ export default function FriendsScreen() {
       <FlatList
         data={(requestsQ.data as any).outgoing}
         keyExtractor={(r: any) => r.id}
+        refreshControl={
+          <RefreshControl
+            tintColor={palette.textMuted}
+            refreshing={searchQ.isFetching}
+            onRefresh={() => searchQ.refetch()}
+          />
+        }
         keyboardShouldPersistTaps="handled"
         renderItem={({ item }) => renderRequestRow(item, 'outgoing')}
         ListEmptyComponent={

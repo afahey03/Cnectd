@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { Prisma, PrismaClient } from "@prisma/client";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
+import { validatePassword } from "../utils/password";
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -12,7 +14,9 @@ const AVATAR_COLORS = [
 
 router.post("/register", async (req, res) => {
   try {
-    let { username, displayName } = req.body as { username?: string; displayName?: string };
+    let { username, displayName, password } = req.body as {
+      username?: string; displayName?: string; password?: string;
+    };
 
     const uname = (username ?? "").trim().toLowerCase();
     const dname = (displayName ?? "").trim();
@@ -20,20 +24,20 @@ router.post("/register", async (req, res) => {
     if (!uname || !/^[a-z0-9._-]{3,30}$/.test(uname)) {
       return res.status(400).json({ error: "Username must be 3–30 chars [a-z0-9._-]." });
     }
-    if (!dname) {
-      return res.status(400).json({ error: "displayName required" });
-    }
+    if (!dname) return res.status(400).json({ error: "displayName required" });
+    if (!password) return res.status(400).json({ error: "Password required" });
 
-    const exists = await prisma.user.findUnique({
-      where: { username: uname },
-      select: { id: true }
-    });
+    const pwErr = validatePassword(password);
+    if (pwErr) return res.status(400).json({ error: pwErr });
+
+    const exists = await prisma.user.findUnique({ where: { username: uname } });
     if (exists) return res.status(409).json({ error: "Username is taken" });
 
+    const hash = await bcrypt.hash(password, 10);
     const randomColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
 
     const user = await prisma.user.create({
-      data: { username: uname, displayName: dname, avatarColor: randomColor },
+      data: { username: uname, displayName: dname, avatarColor: randomColor, passwordHash: hash },
       select: { id: true, username: true, displayName: true, avatarColor: true, createdAt: true }
     });
 
@@ -51,22 +55,24 @@ router.post("/register", async (req, res) => {
 
 router.post("/login", async (req, res) => {
   try {
-    const uname = String(req.body?.username ?? "").trim().toLowerCase();
-    if (!uname) return res.status(400).json({ error: "username required" });
+    const { username, password } = req.body as { username?: string; password?: string };
+    const uname = (username ?? "").trim().toLowerCase();
+    if (!uname || !password) return res.status(400).json({ error: "username and password required" });
 
     const user = await prisma.user.findUnique({
       where: { username: uname },
-      select: { id: true, username: true, displayName: true, avatarColor: true, createdAt: true, deletedAt: true }
+      select: { id: true, username: true, displayName: true, avatarColor: true, createdAt: true, deletedAt: true, passwordHash: true }
     });
 
     if (!user) return res.status(404).json({ error: "User not found" });
-    if (user.deletedAt) {
-      return res.status(410).json({ error: "Account deleted" });
-    }
+    if (user.deletedAt) return res.status(410).json({ error: "Account deleted" });
+
+    const ok = await bcrypt.compare(password, user.passwordHash);
+    if (!ok) return res.status(401).json({ error: "Invalid credentials" });
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "30d" });
-    const { deletedAt, ...publicUser } = user as any;
-    return res.json({ user: publicUser, token });
+    const { passwordHash, ...safeUser } = user;
+    return res.json({ user: safeUser, token });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: "Server error" });

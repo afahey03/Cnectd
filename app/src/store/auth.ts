@@ -11,8 +11,8 @@ type AuthState = {
   token: string | null;
   deviceId: string | null;
   init: () => Promise<void>;
-  register: (username: string, displayName: string) => Promise<void>;
-  login: (username: string) => Promise<void>;
+  register: (username: string, displayName: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -42,30 +42,20 @@ export const useAuth = create<AuthState>((set, get) => ({
     }
   },
 
-  register: async (username, displayName) => {
-    const res = await api.post('/auth/register', { username, displayName });
+  register: async (username, displayName, password) => {
+    const res = await api.post('/auth/register', { username, displayName, password });
     const { token, user } = res.data as { token: string; user: User };
     await SecureStore.setItemAsync('token', token);
     setAuthToken(token);
     set({ token, user });
   },
 
-  login: async (username) => {
-    try {
-      const res = await api.post('/auth/login', { username });
-      const { token, user } = res.data as { token: string; user: User };
-      await SecureStore.setItemAsync('token', token);
-      setAuthToken(token);
-      set({ token, user });
-    } catch (e: any) {
-      const msg = e?.response?.data?.error || 'Could not sign in';
-      if (e?.response?.status === 410) {
-        await SecureStore.deleteItemAsync('token');
-        setAuthToken(null);
-        set({ token: null, user: null });
-      }
-      throw new Error(msg);
-    }
+  login: async (username, password) => {
+    const res = await api.post('/auth/login', { username, password });
+    const { token, user } = res.data as { token: string; user: User };
+    await SecureStore.setItemAsync('token', token);
+    setAuthToken(token);
+    set({ token, user });
   },
 
   logout: async () => {

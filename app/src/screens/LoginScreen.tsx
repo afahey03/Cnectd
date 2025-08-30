@@ -8,16 +8,19 @@ import { useNavigation } from '@react-navigation/native';
 export default function LoginScreen() {
   const nav = useNavigation<any>();
   const login = useAuth(s => s.login);
+
   const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const onSubmit = async () => {
     const u = username.trim().toLowerCase();
-    if (!u) return;
+    if (!u || !password) return;
     setBusy(true); setErr(null);
     try {
-      await login(u);
+      await login(u, password);
     } catch (e: any) {
       setErr(e?.response?.data?.error ?? 'Could not sign in');
     } finally {
@@ -29,7 +32,7 @@ export default function LoginScreen() {
     <Screen style={{ justifyContent: 'center', gap: 16 }}>
       <Text style={{ color: palette.text, fontSize: 28, fontWeight: '800', textAlign: 'center' }}>Welcome back</Text>
       <Text style={{ color: palette.textMuted, textAlign: 'center' }}>
-        Enter your username to continue.
+        Enter your username and password to continue.
       </Text>
 
       <TextInput
@@ -43,16 +46,42 @@ export default function LoginScreen() {
           backgroundColor: palette.inputBg, borderWidth: 1, borderColor: palette.border,
           color: palette.text, borderRadius: 12, padding: 14
         }}
-        onSubmitEditing={onSubmit}
-        returnKeyType="go"
+        returnKeyType="next"
       />
+
+      <View style={{ position: 'relative' }}>
+        <TextInput
+          value={password}
+          onChangeText={setPassword}
+          placeholder="Password"
+          placeholderTextColor={palette.textMuted}
+          secureTextEntry={!showPw}
+          autoCapitalize="none"
+          style={{
+            backgroundColor: palette.inputBg, borderWidth: 1, borderColor: palette.border,
+            color: palette.text, borderRadius: 12, padding: 14, paddingRight: 80
+          }}
+          onSubmitEditing={onSubmit}
+          returnKeyType="go"
+        />
+        <TouchableOpacity
+          onPress={() => setShowPw(s => !s)}
+          style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' }}
+        >
+          <Text style={{ color: palette.primary, fontWeight: '700' }}>{showPw ? 'Hide' : 'Show'}</Text>
+        </TouchableOpacity>
+      </View>
 
       {!!err && <Text style={{ color: palette.danger, textAlign: 'center' }}>{err}</Text>}
 
       <TouchableOpacity
         onPress={onSubmit}
-        disabled={busy}
-        style={{ backgroundColor: palette.primary, borderRadius: 12, padding: 14, opacity: busy ? 0.6 : 1 }}
+        disabled={busy || !username.trim() || !password}
+        style={{
+          backgroundColor: palette.primary,
+          borderRadius: 12, padding: 14,
+          opacity: busy || !username.trim() || !password ? 0.6 : 1
+        }}
       >
         <Text style={{ color: '#0A1020', fontWeight: '800', textAlign: 'center' }}>
           {busy ? 'Signing in…' : 'Sign in'}
@@ -62,10 +91,7 @@ export default function LoginScreen() {
       <View style={{ alignItems: 'center', marginTop: 8 }}>
         <Text style={{ color: palette.textMuted }}>
           New here?{' '}
-          <Text
-            onPress={() => nav.navigate('Register')}
-            style={{ color: palette.primary, fontWeight: '700' }}
-          >
+          <Text onPress={() => nav.navigate('Register')} style={{ color: palette.primary, fontWeight: '700' }}>
             Create an account
           </Text>
         </Text>

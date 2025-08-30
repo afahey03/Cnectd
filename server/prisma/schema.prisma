@@ -8,18 +8,18 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(uuid())
-  username    String   @unique
-  displayName String
+  id           String   @id @default(uuid())
+  username     String   @unique
+  displayName  String
   avatarColor  String?
-  createdAt   DateTime @default(now())
-  deletedAt    DateTime? // null = active; not null = deleted
+  passwordHash String
+  createdAt    DateTime @default(now())
+  deletedAt    DateTime?
 
-  friendsSent     FriendRequest[] @relation("FriendsSent")
-  friendsReceived FriendRequest[] @relation("FriendsReceived")
-  conversations   Conversation[]  @relation("UserConversations")
-  messages        Message[]
-
+  friendsSent      FriendRequest[] @relation("FriendsSent")
+  friendsReceived  FriendRequest[] @relation("FriendsReceived")
+  conversations    Conversation[]  @relation("UserConversations")
+  messages         Message[]
   deliveryReceipts DeliveryReceipt[] @relation("UserDeliveryReceipts")
   dmSeens          DmSeen[]          @relation("UserDmSeen")
 }
@@ -87,6 +87,6 @@ model DmSeen {
   user         User         @relation("UserDmSeen", fields: [userId], references: [id])
   message      Message      @relation("MessageDmSeen", fields: [messageId], references: [id])
 
-  @@unique([conversationId, userId]) // latest seen per user in a DM
+  @@unique([conversationId, userId])
   @@index([messageId])
 }

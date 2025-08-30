@@ -46,3 +46,7 @@ It allows users to register with a unique username, manage friends, and chat via
 
 - **Group Chat**  
   Multi-user conversations with shared history.
+
+- **Accounts**
+  - Change display name and avatar color
+  - Delete accounts with usernames being reserved

@@ -33,7 +33,7 @@ It allows users to register with a unique username, manage friends, and chat via
 ## 📦 Features
 
 - **User Registration**  
-  Sign up with a unique username and display name.  
+  Sign up with a unique username, password and display name.  
   Authentication handled via JWT.
 
 - **Friends System**  
@@ -45,7 +45,9 @@ It allows users to register with a unique username, manage friends, and chat via
   - Message bubbles, timestamps, and sender labels
 
 - **Group Chat**  
-  Multi-user conversations with shared history.
+  - Multi-user conversations with shared history
+  - Only friends can add friends to group chats
+  - Currently no way to add or remove users from existing gc's
 
 - **Accounts**
   - Change display name and avatar color

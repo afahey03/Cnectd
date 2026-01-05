@@ -5,7 +5,7 @@ It allows users to register with a unique username, manage friends, and chat via
 
 ---
 
-## 🚀 Tech Stack
+## Tech Stack
 
 ### Frontend (Mobile App)
 - **[React Native](https://reactnative.dev/)** with **[Expo](https://expo.dev/)** — cross-platform mobile development
@@ -30,7 +30,7 @@ It allows users to register with a unique username, manage friends, and chat via
 
 ---
 
-## 📦 Features
+## Features
 
 - **User Registration**  
   Sign up with a unique username, password and display name.  

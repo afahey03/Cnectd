@@ -12,13 +12,12 @@ It allows users to register with a unique username, manage friends, and chat via
 - **Socket.IO Client**
 
 ### Backend (API Server)
-- **Node.js** + **Express**
+- **TypeScript**
+- **Node.js**
+- **Express**
 - **PostgreSQL**
 - **Socket.IO**
-
-### Infrastructure
 - **Docker**
-- **TypeScript**
 
 ---
 

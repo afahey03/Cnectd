@@ -8,25 +8,17 @@ It allows users to register with a unique username, manage friends, and chat via
 ## Tech Stack
 
 ### Frontend (Mobile App)
-- **[React Native](https://reactnative.dev/)** with **[Expo](https://expo.dev/)** — cross-platform mobile development
-- **[React Navigation](https://reactnavigation.org/)** — navigation and stack handling
-- **[Zustand](https://github.com/pmndrs/zustand)** — lightweight state management
-- **[TanStack React Query](https://tanstack.com/query)** — API data fetching & caching
-- **[Axios](https://axios-http.com/)** — networking
-- **[Socket.IO Client](https://socket.io/)** — real-time messaging
-- **[Expo Secure Store](https://docs.expo.dev/versions/latest/sdk/securestore/)** — secure token storage
-- **[UUID](https://www.npmjs.com/package/uuid)** + **react-native-get-random-values** — ID generation
+- **React Native** with **Expo**
+- **Socket.IO Client**
 
 ### Backend (API Server)
-- **[Node.js](https://nodejs.org/)** + **[Express](https://expressjs.com/)** — REST API
-- **[Prisma](https://www.prisma.io/)** — ORM for database access
-- **[PostgreSQL](https://www.postgresql.org/)** — relational database
-- **[Socket.IO](https://socket.io/)** — real-time chat
-- **[JWT](https://jwt.io/)** — authentication
+- **Node.js** + **Express**
+- **PostgreSQL**
+- **Socket.IO**
 
 ### Infrastructure
-- **[Docker](https://www.docker.com/)** + **docker-compose** — database containerization
-- **TypeScript** — type safety for both frontend and backend
+- **Docker**
+- **TypeScript**
 
 ---
 

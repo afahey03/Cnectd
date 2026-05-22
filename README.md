@@ -10,7 +10,7 @@ It allows users to register with a unique username, manage friends, and chat via
 ## Tech Stack
 
 ### Frontend
-- **React Native** with **Expo**
+- **React Native (Expo)**
 - **Socket.IO Client**
 
 ### Backend
